@@ -13,6 +13,7 @@ import { registerKeyIpc } from './ai/keys'
 import { registerWhisperIpc } from './whisper/ipc'
 import { registerTranscribeIpc } from './transcribe/ipc'
 import { registerSnapIpc } from './snap/ipc'
+import { registerListenIpc } from './listen/ipc'
 import {
   installDisplayMediaHandler,
   installPermissionHandlers,
@@ -96,6 +97,7 @@ app.whenReady().then(() => {
   registerWhisperIpc()
   registerTranscribeIpc()
   registerSnapIpc(() => mainWindow)
+  registerListenIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()

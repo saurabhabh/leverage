@@ -16,7 +16,8 @@ test('opens Leverage with module navigation', async () => {
   await expect(page.getByRole('heading', { name: 'Snap' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Region' })).toBeVisible()
   await page.getByRole('button', { name: 'Listen' }).click()
-  await expect(page.getByText('Coming soon')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Listen' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start dictation' })).toBeVisible()
 
   await app.close()
 })

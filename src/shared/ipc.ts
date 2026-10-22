@@ -17,6 +17,12 @@ import type { CreateInitPayload } from './recording'
 import type { EditDoc } from './edit'
 import type { Transcript } from './transcript'
 import type { SnapAction, SnapDoc, SnapEntry, SnapMode } from './snap'
+import type { DictationEntry, DictationStatus } from './listen'
+import type { GateDecision } from './speechGate'
+
+/** Pill → main: what was recorded, and whether anything was said. */
+export type DictationAudioInfo = { durationMs: number; gate: GateDecision }
+export type DictateCommand = { action: 'start'; id: string } | { action: 'stop' } | { action: 'cancel' }
 
 /** From the Snap region overlay: the selection (global DIP) and what to do with it. */
 export type SnapSelection = { displayId: string; rectDip: Rect; action: SnapAction }
@@ -119,6 +125,21 @@ export interface InvokeApi {
   'pin:zoom': (factor: number) => Promise<void>
   'pin:opacity': (delta: number) => Promise<void>
   'pin:close': () => Promise<void>
+
+  /** Start, or stop and paste (the hotkey does the same). */
+  'dictate:toggle': () => Promise<void>
+  'dictate:cancel': () => Promise<void>
+  'dictate:current': () => Promise<DictationStatus>
+  /** Pill: the finished recording. */
+  'dictate:audio': (id: string, data: ArrayBuffer, info: DictationAudioInfo) => Promise<void>
+  /** Pill: the microphone could not be opened. */
+  'dictate:micError': (message: string) => Promise<void>
+  'dictate:history': () => Promise<DictationEntry[]>
+  /** Transcribe a failed dictation again; the result is copied, not pasted. */
+  'dictate:retry': (id: string) => Promise<DictationEntry>
+  'dictate:copy': (id: string) => Promise<void>
+  'dictate:remove': (id: string) => Promise<void>
+  'dictate:clear': () => Promise<void>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -182,7 +203,17 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'pin:move',
   'pin:zoom',
   'pin:opacity',
-  'pin:close'
+  'pin:close',
+  'dictate:toggle',
+  'dictate:cancel',
+  'dictate:current',
+  'dictate:audio',
+  'dictate:micError',
+  'dictate:history',
+  'dictate:retry',
+  'dictate:copy',
+  'dictate:remove',
+  'dictate:clear'
 ]
 
 /** Main → renderer events. */
@@ -198,6 +229,10 @@ export interface EventMap {
   /** Open this shot in the Snap editor (main window). */
   'snap:open': { id: string }
   'snap:changed': null
+  'dictate:status': DictationStatus
+  /** To the pill only. */
+  'dictate:command': DictateCommand
+  'dictate:historyChanged': null
 }
 
 export type EventChannel = keyof EventMap
@@ -211,7 +246,10 @@ export const EVENT_CHANNELS: readonly EventChannel[] = [
   'whisper:progress',
   'transcribe:progress',
   'snap:open',
-  'snap:changed'
+  'snap:changed',
+  'dictate:status',
+  'dictate:command',
+  'dictate:historyChanged'
 ]
 
 export type LeverageApi = InvokeApi & {

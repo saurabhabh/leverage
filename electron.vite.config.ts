@@ -20,7 +20,8 @@ export default defineConfig({
           toolbar: resolve('src/renderer/toolbar.html'),
           bubble: resolve('src/renderer/bubble.html'),
           'snap-overlay': resolve('src/renderer/snap-overlay.html'),
-          pin: resolve('src/renderer/pin.html')
+          pin: resolve('src/renderer/pin.html'),
+          pill: resolve('src/renderer/pill.html')
         }
       }
     }

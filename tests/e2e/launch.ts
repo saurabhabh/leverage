@@ -9,11 +9,14 @@ import { join } from 'path'
  */
 export async function launchIsolated(
   settings?: Record<string, unknown>,
-  opts: { env?: Record<string, string>; prepare?: (userData: string) => void } = {}
+  opts: { env?: Record<string, string>; prepare?: (userData: string) => void; args?: string[] } = {}
 ): Promise<{ app: ElectronApplication; userData: string }> {
   const userData = mkdtempSync(join(tmpdir(), 'lev-e2e-'))
   if (settings) writeFileSync(join(userData, 'settings.json'), JSON.stringify(settings))
   opts.prepare?.(userData)
-  const app = await electron.launch({ args: ['.'], env: { ...process.env, ...opts.env, LEVERAGE_USER_DATA: userData } })
+  const app = await electron.launch({
+    args: ['.', ...(opts.args ?? [])],
+    env: { ...process.env, ...opts.env, LEVERAGE_USER_DATA: userData }
+  })
   return { app, userData }
 }

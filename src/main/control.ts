@@ -4,6 +4,7 @@ import type { Settings } from '../shared/types'
 import { broadcast, getSettings, handle } from './ipc'
 import { registerHotkeys, registerOne } from './hotkeys'
 import { triggerSnap } from './snap/ipc'
+import { toggleDictation } from './listen/ipc'
 import { createTray, updateTray } from './tray'
 import { hideToolbar, showToolbar } from './windows/toolbar'
 import { bubblePlacement, hideBubble, resizeBubble, showBubble } from './windows/bubble'
@@ -53,7 +54,7 @@ async function command(c: RecorderCommand): Promise<void> {
   mainWindow()?.webContents.send('recorder:command', c)
 }
 
-const trayActions = { command: (c: RecorderCommand) => void command(c), open: openMain, snap: () => triggerSnap() }
+const trayActions = { command: (c: RecorderCommand) => void command(c), open: openMain, snap: () => triggerSnap(), dictate: toggleDictation }
 
 /** What decides helper-window layout and the tray menu; elapsed time and warnings do not. */
 export function layoutKey(s: RecorderStatus): string {
@@ -84,7 +85,10 @@ export function registerHotkeysFromSettings(settings: Settings): void {
   const register = (a: string, cb: () => void): boolean => globalShortcut.register(a, cb)
   failedHotkeys = registerHotkeys(settings.hotkeys, (c) => void command(c), register)
   if (!registerOne(settings.snap.hotkey, () => triggerSnap(), register)) failedHotkeys.push(settings.snap.hotkey)
-  registered = [...Object.values(settings.hotkeys), settings.snap.hotkey].filter((a) => !failedHotkeys.includes(a))
+  if (!registerOne(settings.listen.hotkey, toggleDictation, register)) failedHotkeys.push(settings.listen.hotkey)
+  registered = [...Object.values(settings.hotkeys), settings.snap.hotkey, settings.listen.hotkey].filter(
+    (a) => !failedHotkeys.includes(a)
+  )
 }
 
 export function initControl(getMain: () => BrowserWindow | undefined, trayIcon: string): void {

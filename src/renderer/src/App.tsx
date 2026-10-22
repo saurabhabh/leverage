@@ -4,19 +4,11 @@ import Studio from './studio/Studio'
 import Library from './library/Library'
 import Editor from './editor/Editor'
 import Snap from './snap/Snap'
+import Listen from './listen/Listen'
 
 type Module = 'Studio' | 'Snap' | 'Listen' | 'Library' | 'Settings'
 
 const MODULES: Module[] = ['Studio', 'Snap', 'Listen', 'Library', 'Settings']
-
-function ComingSoon({ name }: { name: string }): React.JSX.Element {
-  return (
-    <div className="placeholder">
-      <h1>{name}</h1>
-      <p>Coming soon</p>
-    </div>
-  )
-}
 
 function App(): React.JSX.Element {
   const [active, setActive] = useState<Module>('Studio')
@@ -57,7 +49,7 @@ function App(): React.JSX.Element {
           <Studio />
         </div>
         {active === 'Snap' && <Snap editing={snapEditing} onEdit={setSnapEditing} />}
-        {active === 'Listen' && <ComingSoon name="Listen" />}
+        {active === 'Listen' && <Listen />}
         {active === 'Library' && !editing && (
           <Library
             onEdit={setEditing}

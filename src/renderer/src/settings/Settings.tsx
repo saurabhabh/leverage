@@ -111,6 +111,10 @@ export default function Settings(): React.JSX.Element {
           <label>Take a screenshot</label>
           <kbd>{pretty(settings.snap.hotkey)}</kbd>
         </div>
+        <div className="row">
+          <label>Dictate (press again to paste)</label>
+          <kbd>{pretty(settings.listen.hotkey)}</kbd>
+        </div>
       </section>
 
       <AiSettings settings={settings} update={update} />

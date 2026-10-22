@@ -50,8 +50,8 @@ export async function processDictation(
 ): Promise<DictationEntry | null> {
   const nothing = async (msg: string): Promise<null> => {
     await deps.dropAudio(id)
+    // Main hides the pill shortly after a final status, so the message stays readable.
     deps.status({ phase: 'done', message: msg })
-    deps.status({ phase: 'idle' })
     return null
   }
   if (info.durationMs < MIN_DURATION_MS) return nothing('Too short')
