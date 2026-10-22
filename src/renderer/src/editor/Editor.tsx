@@ -1,33 +1,47 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { outputDurationMs, relativeOffsets, type EditDoc } from '../../../shared/edit'
+import {
+  cutRange,
+  deleteClip,
+  moveClip,
+  outputDurationMs,
+  relativeOffsets,
+  splitAt,
+  type EditDoc
+} from '../../../shared/edit'
+import { History } from '../../../shared/history'
 import type { OpenedEdit } from '../../../shared/ipc'
 import type { Size, TrackKind } from '../../../shared/types'
 import Preview, { type PreviewHandle } from './Preview'
 import { PlaybackController } from './player'
+import Timeline, { type Mark, type Selection } from './Timeline'
+import { clock } from './time'
 import './editor.css'
 
 type Props = { recordingId: string; onBack: () => void }
 
 const even = (n: number): number => Math.max(2, Math.floor(n / 2) * 2)
-
-export const clock = (ms: number): string => {
-  const tenths = Math.floor(ms / 100)
-  const s = Math.floor(tenths / 10)
-  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.${tenths % 10}`
-}
+const AUTOSAVE_MS = 500
 
 const isTyping = (t: EventTarget | null): boolean =>
-  t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))
+  t instanceof HTMLElement &&
+  (t.isContentEditable || ['TEXTAREA', 'SELECT'].includes(t.tagName) ||
+    (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'range'))
 
 export default function Editor({ recordingId, onBack }: Props): React.JSX.Element {
   const [opened, setOpened] = useState<OpenedEdit | null>(null)
   const [edit, setEdit] = useState<EditDoc | null>(null)
   const [urls, setUrls] = useState<Partial<Record<TrackKind, string>>>({})
   const [error, setError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [timeMs, setTimeMs] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const [selection, setSelection] = useState<Selection>(null)
+  const [mark, setMark] = useState<Mark>({})
+  const [zoom, setZoom] = useState<number | null>(null)
   const preview = useRef<PreviewHandle>(null)
   const player = useRef<PlaybackController | null>(null)
+  const history = useRef<History<EditDoc> | null>(null)
+  const saved = useRef<EditDoc | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -40,6 +54,8 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
           )
         )
         if (cancelled) return
+        history.current = new History(o.edit)
+        saved.current = o.edit
         setUrls(Object.fromEntries(entries))
         setOpened(o)
         setEdit(o.edit)
@@ -52,13 +68,25 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
     }
   }, [recordingId])
 
+  // Autosave (debounced) whenever the edit changes.
+  useEffect(() => {
+    if (!edit || edit === saved.current) return
+    const t = window.setTimeout(() => {
+      saved.current = edit
+      window.leverage['edit:save'](recordingId, edit).then(
+        () => setSaveError(null),
+        (err) => setSaveError(err instanceof Error ? err.message : String(err))
+      )
+    }, AUTOSAVE_MS)
+    return () => window.clearTimeout(t)
+  }, [edit, recordingId])
+
   const frame: Size | null = useMemo(() => {
     if (!opened) return null
     const s = opened.manifest.crop ?? opened.manifest.videoSize
     return { width: even(s.width), height: even(s.height) }
   }, [opened])
 
-  // One controller per opened recording, created once the media elements exist.
   useEffect(() => {
     if (!opened || !preview.current) return
     const p = new PlaybackController({
@@ -78,8 +106,21 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
   }, [opened])
 
   useEffect(() => {
-    if (edit) player.current?.setEdit(edit)
+    if (!edit) return
+    player.current?.setEdit(edit)
+    setTimeMs(player.current?.timeMs ?? 0)
   }, [edit, opened])
+
+  /** Every edit goes through history so it can be undone. */
+  const commit = useCallback((next: EditDoc) => {
+    const h = history.current
+    if (!h || next === h.present) return
+    h.push(next)
+    setEdit(h.present)
+  }, [])
+
+  const undo = useCallback(() => history.current && setEdit(history.current.undo()), [])
+  const redo = useCallback(() => history.current && setEdit(history.current.redo()), [])
 
   const togglePlay = useCallback(() => {
     const p = player.current
@@ -96,16 +137,44 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (isTyping(e.target)) return
-      if (e.code === 'Space') {
+      if (isTyping(e.target) || !history.current) return
+      const present = history.current.present
+      const now = player.current?.timeMs ?? 0
+      const key = e.key.toLowerCase()
+      if (e.ctrlKey && key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if (e.ctrlKey && (key === 'y' || (key === 'z' && e.shiftKey))) {
+        e.preventDefault()
+        redo()
+      } else if (e.ctrlKey || e.altKey || e.metaKey) {
+        return
+      } else if (e.code === 'Space') {
         e.preventDefault()
         togglePlay()
-      } else if (e.key === 'ArrowLeft') seek((player.current?.timeMs ?? 0) - 1000)
-      else if (e.key === 'ArrowRight') seek((player.current?.timeMs ?? 0) + 1000)
+      } else if (e.key === 'ArrowLeft') seek(now - 1000)
+      else if (e.key === 'ArrowRight') seek(now + 1000)
+      else if (key === 's') commit(splitAt(present, now))
+      else if (key === 'i') setMark((m) => ({ ...m, inMs: now }))
+      else if (key === 'o') setMark((m) => ({ ...m, outMs: now }))
+      else if (key === 'x') {
+        setMark((m) => {
+          if (m.inMs !== undefined && m.outMs !== undefined) commit(cutRange(present, m.inMs, m.outMs))
+          return {}
+        })
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selection?.kind === 'clip') {
+          commit(deleteClip(present, selection.id))
+          setSelection(null)
+        }
+      } else if (e.key === 'Escape') {
+        setSelection(null)
+        setMark({})
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [togglePlay, seek])
+  }, [togglePlay, seek, commit, undo, redo, selection])
 
   const total = edit ? outputDurationMs(edit) : 0
 
@@ -116,10 +185,21 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
           ← Library
         </button>
         <h1>{opened?.manifest.title ?? 'Opening…'}</h1>
+        <button className="btn" onClick={undo} disabled={!history.current?.canUndo} title="Undo (Ctrl+Z)">
+          Undo
+        </button>
+        <button className="btn" onClick={redo} disabled={!history.current?.canRedo} title="Redo (Ctrl+Y)">
+          Redo
+        </button>
       </div>
       {error && (
         <div className="banner error" role="alert">
           {error}
+        </div>
+      )}
+      {saveError && (
+        <div className="banner error" role="alert">
+          Edits could not be saved: {saveError}
         </div>
       )}
       {opened?.repaired && (
@@ -148,6 +228,17 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
               onChange={(e) => seek(Number(e.target.value))}
             />
           </div>
+          <Timeline
+            edit={edit}
+            timeMs={timeMs}
+            selection={selection}
+            mark={mark}
+            zoomMsPerPx={zoom}
+            onSeek={seek}
+            onSelect={setSelection}
+            onMoveClip={(id, to) => commit(moveClip(edit, id, to))}
+            onZoom={setZoom}
+          />
         </>
       )}
     </div>

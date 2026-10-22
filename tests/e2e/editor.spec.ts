@@ -1,23 +1,5 @@
-import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtempSync } from 'fs'
-import { tmpdir } from 'os'
-import { join } from 'path'
-import { launchIsolated } from './launch'
-import { seedCrashedRecording } from './fixtures'
-
-/** Launch with one seeded 3 s recording (screen, camera, mic, system) and open it in the editor. */
-export async function openEditor(
-  opts: { camera?: boolean } = {}
-): Promise<{ app: ElectronApplication; page: Page; dir: string }> {
-  const library = join(mkdtempSync(join(tmpdir(), 'lev-editor-')), 'Library')
-  const dir = seedCrashedRecording(library, opts)
-  const { app } = await launchIsolated({ libraryDir: library })
-  const page = await app.firstWindow()
-  await page.getByRole('button', { name: 'Library' }).click()
-  await page.getByTestId('library-item').getByRole('button', { name: 'Edit' }).click()
-  await expect(page.getByRole('heading', { name: 'Crashed demo' })).toBeVisible()
-  return { app, page, dir }
-}
+import { test, expect } from '@playwright/test'
+import { openEditor } from './editorHelpers'
 
 test('opens a recording from the Library in the editor', async () => {
   const { app, page } = await openEditor()

@@ -82,3 +82,123 @@
   flex: 1;
   accent-color: var(--accent);
 }
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.timeline-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.timeline-hint {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.timeline-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px 8px;
+}
+
+.timeline-content {
+  position: relative;
+}
+
+.ruler {
+  position: relative;
+  height: 22px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.tick {
+  position: absolute;
+  top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  border-left: 1px solid var(--border);
+  padding-left: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.clip-lane,
+.lane {
+  position: relative;
+  height: 40px;
+  margin-top: 6px;
+}
+
+.lane {
+  height: 24px;
+}
+
+.clip {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  background: #3a6ff7;
+  color: #fff;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  font-size: 11px;
+  padding: 4px 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: grab;
+}
+
+.clip + .clip {
+  border-left-color: rgba(255, 255, 255, 0.6);
+}
+
+.clip.selected {
+  border-color: #ffd60a;
+}
+
+.drop-indicator {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1px;
+  background: #ffd60a;
+}
+
+.mark {
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  background: rgba(255, 214, 10, 0.25);
+  pointer-events: none;
+}
+
+.mark-edge {
+  position: absolute;
+  top: 22px;
+  bottom: 0;
+  width: 2px;
+  background: #ffd60a;
+  pointer-events: none;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+  pointer-events: none;
+}

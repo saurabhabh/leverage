@@ -1,5 +1,6 @@
 import { execFileSync } from 'child_process'
-import { mkdirSync, writeFileSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import ffmpeg from 'ffmpeg-static'
 import ffprobe from 'ffprobe-static'
 import { join } from 'path'
@@ -22,15 +23,32 @@ export const probe = (file: string): { streams: string[]; width: number; duratio
   }
 }
 
+/** Generated once per test process and copied into each seeded recording. */
+const MEDIA_CACHE = join(tmpdir(), 'lev-fixture-media-v1')
+const MEDIA: Record<string, [string[], string[]]> = {
+  'screen.webm': [['-f', 'lavfi', '-i', 'testsrc=size=1280x720:rate=30'], ['-c:v', 'libvpx', '-b:v', '1M']],
+  'camera.webm': [['-f', 'lavfi', '-i', 'testsrc2=size=640x480:rate=30'], ['-c:v', 'libvpx', '-b:v', '500k']],
+  'mic.webm': [['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'], ['-c:a', 'libopus']],
+  'system.webm': [['-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000'], ['-c:a', 'libopus']]
+}
+
+function copyMedia(name: string, dir: string): void {
+  const cached = join(MEDIA_CACHE, name)
+  if (!existsSync(cached)) {
+    mkdirSync(MEDIA_CACHE, { recursive: true })
+    const tmp = cached + '.part.webm'
+    live(tmp, ...MEDIA[name])
+    copyFileSync(tmp, cached)
+  }
+  copyFileSync(cached, join(dir, name))
+}
+
 /** A recording interrupted by a crash: raw live-mode WebM (no duration/cues), status "recording". */
 export function seedCrashedRecording(library: string, opts: { camera?: boolean } = {}): string {
   const withCamera = opts.camera ?? true
   const dir = join(library, '2026-10-22 10-00-00')
   mkdirSync(dir, { recursive: true })
-  live(join(dir, 'screen.webm'), ['-f', 'lavfi', '-i', 'testsrc=size=1280x720:rate=30'], ['-c:v', 'libvpx', '-b:v', '1M'])
-  if (withCamera) live(join(dir, 'camera.webm'), ['-f', 'lavfi', '-i', 'testsrc2=size=640x480:rate=30'], ['-c:v', 'libvpx', '-b:v', '500k'])
-  live(join(dir, 'mic.webm'), ['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'], ['-c:a', 'libopus'])
-  live(join(dir, 'system.webm'), ['-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000'], ['-c:a', 'libopus'])
+  for (const name of ['screen.webm', ...(withCamera ? ['camera.webm'] : []), 'mic.webm', 'system.webm']) copyMedia(name, dir)
   const t = (file: string, offsetMs = 0): { file: string; mime: string; offsetMs: number } => ({ file, mime: 'x', offsetMs })
   writeFileSync(
     join(dir, 'recording.json'),
