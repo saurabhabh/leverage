@@ -26,6 +26,13 @@ describe('settings', () => {
       abort: 'CommandOrControl+Shift+X'
     })
     expect(s.snap).toEqual({ dir: join(HOME, 'Pictures', 'Leverage'), hotkey: 'CommandOrControl+Shift+2' })
+    expect(s.listen).toEqual({
+      hotkey: 'CommandOrControl+Shift+Space',
+      paste: true,
+      cleanup: true,
+      dictionary: [],
+      notesDir: join(HOME, 'Documents', 'Leverage Notes')
+    })
   })
 
   test('defaults when file is invalid JSON', () => {
@@ -46,6 +53,7 @@ describe('settings', () => {
     const s = loadSettings(file, HOME)
     expect(s.libraryDir).toBe('D:\\Rec')
     expect(s.snap).toEqual(defaultSettings(HOME).snap)
+    expect(s.listen).toEqual(defaultSettings(HOME).listen)
   })
 
   test('invalid field values fall back to defaults', () => {

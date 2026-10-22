@@ -33,13 +33,25 @@ export const SnapSettingsSchema = z.object({
   hotkey: z.string().min(1)
 })
 
+export const ListenSettingsSchema = z.object({
+  hotkey: z.string().min(1),
+  /** Off: the text is only copied to the clipboard. */
+  paste: z.boolean(),
+  /** AI cleanup, used only when the provider chosen for AI has a key. */
+  cleanup: z.boolean(),
+  /** Names and terms Whisper should spell right. */
+  dictionary: z.array(z.string()),
+  notesDir: z.string().min(1)
+})
+
 export const SettingsSchema = z.object({
   libraryDir: z.string().min(1),
   countdownSec: z.number().int().min(0).max(10),
   confirmAbort: z.boolean(),
   hotkeys: HotkeysSchema,
   ai: AiSettingsSchema,
-  snap: SnapSettingsSchema
+  snap: SnapSettingsSchema,
+  listen: ListenSettingsSchema
 })
 
 export type Settings = z.infer<typeof SettingsSchema>

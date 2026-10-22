@@ -22,6 +22,14 @@ export function defaultSettings(home: string): Settings {
       dir: join(home, 'Pictures', 'Leverage'),
       // Ctrl+Shift+X is Studio's abort, and Windows 11 gives Print Screen to Snipping Tool.
       hotkey: 'CommandOrControl+Shift+2'
+    },
+    listen: {
+      // OpenWhispr's default (Ctrl+Win) needs a native keyboard hook; this is its own fallback.
+      hotkey: 'CommandOrControl+Shift+Space',
+      paste: true,
+      cleanup: true,
+      dictionary: [],
+      notesDir: join(home, 'Documents', 'Leverage Notes')
     }
   }
 }
