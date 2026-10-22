@@ -3,15 +3,16 @@ import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { launchIsolated } from './launch'
-import { seedCrashedRecording } from './fixtures'
+import { seedCrashedRecording, type SeedOptions } from './fixtures'
 
 /** Launch with one seeded 3 s recording (screen, camera, mic, system) and open it in the editor. */
 export async function openEditor(
-  opts: { camera?: boolean } = {}
+  opts: SeedOptions = {},
+  launch: { settings?: Record<string, unknown>; env?: Record<string, string>; prepare?: (userData: string) => void } = {}
 ): Promise<{ app: ElectronApplication; page: Page; dir: string }> {
   const library = join(mkdtempSync(join(tmpdir(), 'lev-editor-')), 'Library')
   const dir = seedCrashedRecording(library, opts)
-  const { app } = await launchIsolated({ libraryDir: library })
+  const { app } = await launchIsolated({ libraryDir: library, ...launch.settings }, { env: launch.env, prepare: launch.prepare })
   const page = await app.firstWindow()
   await page.getByRole('button', { name: 'Library' }).click()
   await page.getByTestId('library-item').getByRole('button', { name: 'Edit' }).click()

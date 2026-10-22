@@ -8,10 +8,12 @@ import { join } from 'path'
  * `settings` is written before launch, so start-up work (like crash recovery) sees it.
  */
 export async function launchIsolated(
-  settings?: Record<string, unknown>
+  settings?: Record<string, unknown>,
+  opts: { env?: Record<string, string>; prepare?: (userData: string) => void } = {}
 ): Promise<{ app: ElectronApplication; userData: string }> {
   const userData = mkdtempSync(join(tmpdir(), 'lev-e2e-'))
   if (settings) writeFileSync(join(userData, 'settings.json'), JSON.stringify(settings))
-  const app = await electron.launch({ args: ['.'], env: { ...process.env, LEVERAGE_USER_DATA: userData } })
+  opts.prepare?.(userData)
+  const app = await electron.launch({ args: ['.'], env: { ...process.env, ...opts.env, LEVERAGE_USER_DATA: userData } })
   return { app, userData }
 }

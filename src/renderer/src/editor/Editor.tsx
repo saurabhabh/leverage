@@ -9,6 +9,8 @@ import {
   outputToSource,
   relativeOffsets,
   removeOverlay,
+  removeSourceRange,
+  sourceToOutput,
   setCamera,
   setGain,
   setMuted,
@@ -33,6 +35,8 @@ import { PlaybackController } from './player'
 import Timeline, { type Mark, type Selection } from './Timeline'
 import { clock } from './time'
 import { exportRecording } from './exportPrep'
+import TranscriptPanel, { type WordSelection } from './TranscriptPanel'
+import type { Transcript } from '../../../shared/transcript'
 import './editor.css'
 
 type Props = { recordingId: string; onBack: () => void }
@@ -57,6 +61,9 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
   const [mark, setMark] = useState<Mark>({})
   const [zoom, setZoom] = useState<number | null>(null)
   const [tool, setTool] = useState<Tool>(null)
+  const [transcript, setTranscript] = useState<Transcript | null>(null)
+  const [wordSel, setWordSel] = useState<WordSelection>(null)
+  const [sideTab, setSideTab] = useState<'transcript' | 'properties'>('transcript')
   const [exporting, setExporting] = useState<{ pct: number } | { done: string } | { error: string } | null>(null)
   const preview = useRef<PreviewHandle>(null)
   const player = useRef<PlaybackController | null>(null)
@@ -68,6 +75,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
     ;(async () => {
       try {
         const o = await window.leverage['edit:open'](recordingId)
+        const t = await window.leverage['transcribe:get'](recordingId).catch(() => null)
         const entries = await Promise.all(
           (Object.keys(o.manifest.tracks) as TrackKind[]).map(
             async (k) => [k, await window.leverage['edit:mediaUrl'](recordingId, k)] as const
@@ -79,6 +87,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
         setUrls(Object.fromEntries(entries))
         setOpened(o)
         setEdit(o.edit)
+        setTranscript(t)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))
       }
@@ -198,18 +207,36 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
           return {}
         })
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selection?.kind === 'clip') commit(deleteClip(present, selection.id))
+        if (wordSel) cutWords(present, wordSel)
+        else if (selection?.kind === 'clip') commit(deleteClip(present, selection.id))
         else if (selection?.kind === 'overlay') commit(removeOverlay(present, selection.id))
         setSelection(null)
       } else if (e.key === 'Escape') {
         setTool(null)
         setSelection(null)
+        setWordSel(null)
         setMark({})
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [togglePlay, seek, commit, undo, redo, selection])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [togglePlay, seek, commit, undo, redo, selection, wordSel, transcript])
+
+  /** Remove the source time of the selected words wherever it plays. */
+  function cutWords(present: EditDoc, sel: NonNullable<WordSelection>): void {
+    const words = transcript?.words ?? []
+    const first = words[sel.from]
+    const last = words[sel.to]
+    if (first && last) commit(removeSourceRange(present, first.startMs, last.endMs))
+    setWordSel(null)
+  }
+
+  const selectAndShow = (sel: Selection): void => {
+    setSelection(sel)
+    setWordSel(null)
+    if (sel?.kind === 'overlay') setSideTab('properties')
+  }
 
   const total = edit ? outputDurationMs(edit) : 0
 
@@ -270,7 +297,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
           : { id, kind: tool, ...span, rect: r, text: '', color: SWATCHES[0] }
     }
     commit(addOverlay(edit, o))
-    setSelection({ kind: 'overlay', id })
+    selectAndShow({ kind: 'overlay', id })
     setTool(null)
   }
 
@@ -278,7 +305,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
     if (!edit) return
     const id = newId()
     commit(addOverlay(edit, { id, kind: 'lowerThird', ...newSpan(edit, timeMs), title: 'Title', subtitle: 'Subtitle' }))
-    setSelection({ kind: 'overlay', id })
+    selectAndShow({ kind: 'overlay', id })
     setTool(null)
   }
 
@@ -377,17 +404,62 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
                   tool={tool}
                   selectedId={selectedOverlay?.id ?? null}
                   onCreate={createOverlay}
-                  onSelect={(id) => setSelection(id ? { kind: 'overlay', id } : null)}
+                  onSelect={(id) => selectAndShow(id ? { kind: 'overlay', id } : null)}
                   onRect={(id, rect) => commit(updateOverlay(edit, id, { rect } as Partial<Overlay>))}
                   camera={urls.camera ? edit.camera : null}
                   onCamera={(c) => commit(setCamera(edit, c))}
                 />
               )}
             />
-            {!selectedOverlay && urls.camera && edit.camera && (
-              <CameraPanel camera={edit.camera} frame={frame} onChange={(patch) => commit(setCamera(edit, patch))} />
-            )}
-            {selectedOverlay && (
+            <div className="side">
+              <div className="side-tabs" role="tablist">
+                {(['transcript', 'properties'] as const).map((t) => (
+                  <button
+                    key={t}
+                    role="tab"
+                    aria-selected={sideTab === t}
+                    className={sideTab === t ? 'tab active' : 'tab'}
+                    onClick={() => setSideTab(t)}
+                  >
+                    {t === 'transcript' ? 'Transcript' : 'Properties'}
+                  </button>
+                ))}
+              </div>
+              {sideTab === 'transcript' && (
+                <TranscriptPanel
+                  recordingId={recordingId}
+                  edit={edit}
+                  transcript={transcript}
+                  onTranscript={(t) => {
+                    setTranscript(t)
+                    setWordSel(null)
+                  }}
+                  unavailable={
+                    opened.manifest.tracks.mic || opened.manifest.tracks.system
+                      ? null
+                      : 'This recording has no microphone or system audio to transcribe.'
+                  }
+                  srcMs={srcMs}
+                  selection={wordSel}
+                  onSelect={(sel) => {
+                    setWordSel(sel)
+                    setSelection(null)
+                  }}
+                  onSeekWord={(i) => {
+                    const w = transcript?.words[i]
+                    const at = w && sourceToOutput(edit, w.startMs, Math.max(w.endMs, w.startMs + 1))[0]
+                    if (at) seek(at.outStartMs)
+                  }}
+                  onCutSelected={() => wordSel && cutWords(edit, wordSel)}
+                />
+              )}
+              {sideTab === 'properties' && !selectedOverlay && urls.camera && edit.camera && (
+                <CameraPanel camera={edit.camera} frame={frame} onChange={(patch) => commit(setCamera(edit, patch))} />
+              )}
+              {sideTab === 'properties' && !selectedOverlay && !(urls.camera && edit.camera) && (
+                <p className="muted">Select an overlay to edit it.</p>
+              )}
+            {sideTab === 'properties' && selectedOverlay && (
               <Inspector
                 edit={edit}
                 overlay={selectedOverlay}
@@ -398,6 +470,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
                 }}
               />
             )}
+            </div>
           </div>
           <div className="transport">
             <button className="btn" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
@@ -424,7 +497,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
             mark={mark}
             zoomMsPerPx={zoom}
             onSeek={seek}
-            onSelect={setSelection}
+            onSelect={selectAndShow}
             onMoveClip={(id, to) => commit(moveClip(edit, id, to))}
             onZoom={setZoom}
             lanes={(msPerPx) => (
@@ -433,7 +506,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
                 edit={edit}
                 msPerPx={msPerPx}
                 selectedId={selectedOverlay?.id ?? null}
-                onSelect={(id) => setSelection({ kind: 'overlay', id })}
+                onSelect={(id) => selectAndShow({ kind: 'overlay', id })}
                 onSpan={(id, srcStartMs, srcEndMs) => commit(updateOverlay(edit, id, { srcStartMs, srcEndMs }))}
               />
               </>

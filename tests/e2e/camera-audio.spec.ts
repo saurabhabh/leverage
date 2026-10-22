@@ -27,6 +27,7 @@ test('dragging the camera circle moves it and the edit saves the new position', 
 
 test('hiding the camera hides it in the preview and saves it', async () => {
   const { app, page, dir } = await openEditor()
+  await page.getByRole('tab', { name: 'Properties' }).click()
   await page.getByLabel('Show camera').uncheck()
   await expect(page.getByTestId('preview-camera')).toBeHidden()
   expect((await savedEdit(dir)).camera.visible).toBe(false)
@@ -35,6 +36,7 @@ test('hiding the camera hides it in the preview and saves it', async () => {
 
 test('camera size presets resize the circle', async () => {
   const { app, page, dir } = await openEditor()
+  await page.getByRole('tab', { name: 'Properties' }).click()
   await page.getByRole('button', { name: 'Camera size L' }).click()
   // L = 30 % of the 800 px frame width.
   expect((await savedEdit(dir)).camera.size).toBe(240)
