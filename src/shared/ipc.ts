@@ -21,6 +21,9 @@ export interface InvokeApi {
 
   'capture:list': () => Promise<CaptureSource[]>
   'capture:select': (sourceId: string) => Promise<void>
+
+  'window:minimize': () => Promise<void>
+  'window:restore': () => Promise<void>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -38,7 +41,9 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'rec:abort',
   'rec:list',
   'capture:list',
-  'capture:select'
+  'capture:select',
+  'window:minimize',
+  'window:restore'
 ]
 
 /** Main → renderer events. */

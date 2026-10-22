@@ -34,6 +34,16 @@ export function registerCoreIpc(): void {
     broadcast('settings:changed', current)
     return current
   })
+  handle('window:minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  handle('window:restore', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+  })
   handle('dialog:pickFolder', async (event, defaultPath) => {
     const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
     const options: Electron.OpenDialogOptions = {

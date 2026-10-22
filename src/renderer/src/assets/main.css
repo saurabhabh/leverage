@@ -259,3 +259,60 @@ select {
   padding: 10px 28px;
   border-radius: 999px;
 }
+
+.banner {
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  max-width: 880px;
+}
+
+.banner.warning {
+  background: #fff4d6;
+  color: #6b4e00;
+}
+
+.banner.error {
+  background: #ffe1e1;
+  color: #8a1c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .banner.warning {
+    background: #3a2f10;
+    color: #f5d77a;
+  }
+  .banner.error {
+    background: #3d1717;
+    color: #ffb3b3;
+  }
+}
+
+.countdown {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.countdown-number {
+  font-size: 140px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.recording-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 600;
+  min-width: 80px;
+}
