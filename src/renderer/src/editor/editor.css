@@ -202,3 +202,171 @@
   background: var(--accent);
   pointer-events: none;
 }
+
+.editor-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.editor-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+}
+
+.editor-main .preview-frame {
+  flex: 1;
+}
+
+.preview-blur {
+  position: absolute;
+  pointer-events: none;
+}
+
+.overlay-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.overlay-layer.drawing {
+  cursor: crosshair;
+}
+
+.overlay-hit {
+  position: absolute;
+  cursor: move;
+  border: 1px dashed transparent;
+}
+
+.overlay-hit:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.overlay-hit.selected {
+  border: 2px dashed #ffd60a;
+}
+
+.overlay-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: #ffd60a;
+  border-radius: 3px;
+  cursor: nwse-resize;
+}
+
+.overlay-draft {
+  position: absolute;
+  border: 2px dashed #ffd60a;
+  pointer-events: none;
+}
+
+.inspector {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  overflow-y: auto;
+}
+
+.inspector-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.inspector-head strong {
+  font-size: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.field input:not([type='range']) {
+  padding: 6px 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.swatches {
+  display: flex;
+  gap: 6px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  padding: 0;
+}
+
+.swatch.selected {
+  border-color: var(--text);
+}
+
+.lane-label {
+  position: sticky;
+  left: 0;
+  font-size: 10px;
+  color: var(--muted);
+  z-index: 1;
+}
+
+.overlay-bar {
+  position: absolute;
+  top: 2px;
+  height: 20px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 3px 6px;
+  color: #111;
+  background: #ffd60a;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: grab;
+  border: 2px solid transparent;
+}
+
+.overlay-bar.blur {
+  background: #a0a0aa;
+}
+
+.overlay-bar.lowerThird {
+  background: #ff9f0a;
+}
+
+.overlay-bar.selected {
+  border-color: var(--text);
+}
+
+.bar-end {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}

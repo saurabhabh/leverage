@@ -17,7 +17,9 @@ type Props = {
   edit: EditDoc
   urls: Partial<Record<TrackKind, string>>
   children?: React.ReactNode
-  /** Rendered inside the stage, in display px (overlay handles, camera drag, etc.). */
+  /** Rendered inside the stage under the callout canvas (blur previews). */
+  belowCanvas?: (scale: number) => React.ReactNode
+  /** Rendered inside the stage above everything (overlay handles, camera drag, etc.). */
   stageChildren?: (scale: number) => React.ReactNode
 }
 
@@ -25,7 +27,7 @@ type Props = {
  * The frame as it will be exported: the screen (cropped) scaled to fit, the camera circle where the
  * edit puts it, and a canvas for callouts/lower-thirds. Mic and system audio are hidden <audio>.
  */
-const Preview = forwardRef<PreviewHandle, Props>(function Preview({ manifest, frame, edit, urls, stageChildren }, ref) {
+const Preview = forwardRef<PreviewHandle, Props>(function Preview({ manifest, frame, edit, urls, belowCanvas, stageChildren }, ref) {
   const outer = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -103,6 +105,7 @@ const Preview = forwardRef<PreviewHandle, Props>(function Preview({ manifest, fr
             />
           </div>
         )}
+        {belowCanvas?.(scale)}
         <canvas
           ref={canvas}
           className="preview-overlays"

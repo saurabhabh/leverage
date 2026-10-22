@@ -1,13 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  addOverlay,
   cutRange,
   deleteClip,
   moveClip,
+  newId,
   outputDurationMs,
+  outputToSource,
   relativeOffsets,
+  removeOverlay,
   splitAt,
-  type EditDoc
+  updateOverlay,
+  type EditDoc,
+  type Overlay
 } from '../../../shared/edit'
+import type { Rect } from '../../../shared/types'
+import { drawOverlay } from './drawOverlay'
+import Inspector from './Inspector'
+import OverlayLane from './OverlayLane'
+import OverlayLayer, { BlurLayer } from './OverlayLayer'
+import { isVisibleAt, newSpan, normalize, SWATCHES, type Tool } from './overlayGeometry'
 import { History } from '../../../shared/history'
 import type { OpenedEdit } from '../../../shared/ipc'
 import type { Size, TrackKind } from '../../../shared/types'
@@ -38,6 +50,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
   const [selection, setSelection] = useState<Selection>(null)
   const [mark, setMark] = useState<Mark>({})
   const [zoom, setZoom] = useState<number | null>(null)
+  const [tool, setTool] = useState<Tool>(null)
   const preview = useRef<PreviewHandle>(null)
   const player = useRef<PlaybackController | null>(null)
   const history = useRef<History<EditDoc> | null>(null)
@@ -163,11 +176,11 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
           return {}
         })
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selection?.kind === 'clip') {
-          commit(deleteClip(present, selection.id))
-          setSelection(null)
-        }
+        if (selection?.kind === 'clip') commit(deleteClip(present, selection.id))
+        else if (selection?.kind === 'overlay') commit(removeOverlay(present, selection.id))
+        setSelection(null)
       } else if (e.key === 'Escape') {
+        setTool(null)
         setSelection(null)
         setMark({})
       }
@@ -177,6 +190,51 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
   }, [togglePlay, seek, commit, undo, redo, selection])
 
   const total = edit ? outputDurationMs(edit) : 0
+  const srcMs = edit ? outputToSource(edit, timeMs).srcMs : 0
+  const selectedOverlay =
+    selection?.kind === 'overlay' ? edit?.overlays.find((o) => o.id === selection.id) : undefined
+
+  // Callouts and lower-thirds are drawn with the same code the export rasterizes.
+  useEffect(() => {
+    const canvas = preview.current?.overlayCanvas()
+    if (!canvas || !edit || !frame) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const s = canvas.width / frame.width
+    ctx.setTransform(s, 0, 0, s, 0, 0)
+    for (const o of edit.overlays) {
+      if (o.kind !== 'blur' && isVisibleAt(o, srcMs)) drawOverlay(ctx, o, frame)
+    }
+  })
+
+  const createOverlay = (rect: Rect): void => {
+    if (!edit || !tool) return
+    const span = newSpan(edit, timeMs)
+    const id = newId()
+    let o: Overlay
+    if (tool === 'text') o = { id, kind: 'text', ...span, rect: { x: rect.x, y: rect.y, width: 0, height: 0 }, text: 'Text', color: SWATCHES[0] }
+    else {
+      const r = tool === 'arrow' ? rect : normalize(rect)
+      if (Math.abs(r.width) < 8 && Math.abs(r.height) < 8) return
+      o =
+        tool === 'blur'
+          ? { id, kind: 'blur', ...span, rect: r, strength: 10 }
+          : { id, kind: tool, ...span, rect: r, text: '', color: SWATCHES[0] }
+    }
+    commit(addOverlay(edit, o))
+    setSelection({ kind: 'overlay', id })
+    setTool(null)
+  }
+
+  const addLowerThird = (): void => {
+    if (!edit) return
+    const id = newId()
+    commit(addOverlay(edit, { id, kind: 'lowerThird', ...newSpan(edit, timeMs), title: 'Title', subtitle: 'Subtitle' }))
+    setSelection({ kind: 'overlay', id })
+    setTool(null)
+  }
 
   return (
     <div className="editor">
@@ -209,7 +267,63 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
       )}
       {opened && edit && frame && (
         <>
-          <Preview ref={preview} manifest={opened.manifest} frame={frame} edit={edit} urls={urls} />
+          <div className="editor-tools" role="toolbar" aria-label="Add overlay">
+            {(
+              [
+                ['blur', 'Blur'],
+                ['arrow', 'Arrow'],
+                ['box', 'Box'],
+                ['text', 'Text']
+              ] as const
+            ).map(([t, label]) => (
+              <button
+                key={t}
+                className={tool === t ? 'btn active' : 'btn'}
+                aria-pressed={tool === t}
+                onClick={() => setTool(tool === t ? null : t)}
+              >
+                {label}
+              </button>
+            ))}
+            <button className="btn" onClick={addLowerThird}>
+              Lower third
+            </button>
+            {tool && <span className="muted">Draw on the preview · Esc to cancel</span>}
+          </div>
+          <div className="editor-main">
+            <Preview
+              ref={preview}
+              manifest={opened.manifest}
+              frame={frame}
+              edit={edit}
+              urls={urls}
+              belowCanvas={(scale) => <BlurLayer overlays={edit.overlays} srcMs={srcMs} scale={scale} />}
+              stageChildren={(scale) => (
+                <OverlayLayer
+                  overlays={edit.overlays}
+                  frame={frame}
+                  scale={scale}
+                  srcMs={srcMs}
+                  tool={tool}
+                  selectedId={selectedOverlay?.id ?? null}
+                  onCreate={createOverlay}
+                  onSelect={(id) => setSelection(id ? { kind: 'overlay', id } : null)}
+                  onRect={(id, rect) => commit(updateOverlay(edit, id, { rect } as Partial<Overlay>))}
+                />
+              )}
+            />
+            {selectedOverlay && (
+              <Inspector
+                edit={edit}
+                overlay={selectedOverlay}
+                onChange={(patch) => commit(updateOverlay(edit, selectedOverlay.id, patch))}
+                onDelete={() => {
+                  commit(removeOverlay(edit, selectedOverlay.id))
+                  setSelection(null)
+                }}
+              />
+            )}
+          </div>
           <div className="transport">
             <button className="btn" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
               {playing ? '❚❚' : '▶'}
@@ -238,6 +352,15 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
             onSelect={setSelection}
             onMoveClip={(id, to) => commit(moveClip(edit, id, to))}
             onZoom={setZoom}
+            lanes={(msPerPx) => (
+              <OverlayLane
+                edit={edit}
+                msPerPx={msPerPx}
+                selectedId={selectedOverlay?.id ?? null}
+                onSelect={(id) => setSelection({ kind: 'overlay', id })}
+                onSpan={(id, srcStartMs, srcEndMs) => commit(updateOverlay(edit, id, { srcStartMs, srcEndMs }))}
+              />
+            )}
           />
         </>
       )}
