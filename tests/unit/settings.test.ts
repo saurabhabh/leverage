@@ -25,6 +25,7 @@ describe('settings', () => {
       pause: 'CommandOrControl+Shift+P',
       abort: 'CommandOrControl+Shift+X'
     })
+    expect(s.snap).toEqual({ dir: join(HOME, 'Pictures', 'Leverage'), hotkey: 'CommandOrControl+Shift+2' })
   })
 
   test('defaults when file is invalid JSON', () => {
@@ -38,6 +39,13 @@ describe('settings', () => {
     expect(s.countdownSec).toBe(5)
     expect(s.confirmAbort).toBe(true)
     expect('bogus' in s).toBe(false)
+  })
+
+  test('a settings file from before Snap existed gets Snap defaults', () => {
+    writeFileSync(file, JSON.stringify({ libraryDir: 'D:\\Rec' }))
+    const s = loadSettings(file, HOME)
+    expect(s.libraryDir).toBe('D:\\Rec')
+    expect(s.snap).toEqual(defaultSettings(HOME).snap)
   })
 
   test('invalid field values fall back to defaults', () => {

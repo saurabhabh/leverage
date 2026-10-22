@@ -34,6 +34,11 @@ export default function Settings(): React.JSX.Element {
     if (folder) update({ libraryDir: folder })
   }
 
+  const pickSnapFolder = async (): Promise<void> => {
+    const folder = await window.leverage['dialog:pickFolder'](settings.snap.dir)
+    if (folder) update({ snap: { ...settings.snap, dir: folder } })
+  }
+
   return (
     <div className="page">
       <h1>Settings</h1>
@@ -75,6 +80,19 @@ export default function Settings(): React.JSX.Element {
       </section>
 
       <section className="card">
+        <h2>Screenshots</h2>
+        <div className="row">
+          <label>Screenshots folder</label>
+          <code className="path" data-testid="snap-dir">
+            {settings.snap.dir}
+          </code>
+          <button className="btn" onClick={pickSnapFolder}>
+            Change…
+          </button>
+        </div>
+      </section>
+
+      <section className="card">
         <h2>Hotkeys</h2>
         <p className="muted">These work from any app while Leverage is running.</p>
         {failedHotkeys.length > 0 && (
@@ -89,6 +107,10 @@ export default function Settings(): React.JSX.Element {
             <kbd>{pretty(settings.hotkeys[k])}</kbd>
           </div>
         ))}
+        <div className="row">
+          <label>Take a screenshot</label>
+          <kbd>{pretty(settings.snap.hotkey)}</kbd>
+        </div>
       </section>
 
       <AiSettings settings={settings} update={update} />

@@ -17,6 +17,11 @@ export function defaultSettings(home: string): Settings {
       suggestions: 'groq',
       groqChatModel: 'openai/gpt-oss-120b',
       openrouterModel: 'anthropic/claude-sonnet-5.5'
+    },
+    snap: {
+      dir: join(home, 'Pictures', 'Leverage'),
+      // Ctrl+Shift+X is Studio's abort, and Windows 11 gives Print Screen to Snipping Tool.
+      hotkey: 'CommandOrControl+Shift+2'
     }
   }
 }

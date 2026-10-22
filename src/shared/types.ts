@@ -28,12 +28,18 @@ export const AiSettingsSchema = z.object({
   openrouterModel: z.string().min(1)
 })
 
+export const SnapSettingsSchema = z.object({
+  dir: z.string().min(1),
+  hotkey: z.string().min(1)
+})
+
 export const SettingsSchema = z.object({
   libraryDir: z.string().min(1),
   countdownSec: z.number().int().min(0).max(10),
   confirmAbort: z.boolean(),
   hotkeys: HotkeysSchema,
-  ai: AiSettingsSchema
+  ai: AiSettingsSchema,
+  snap: SnapSettingsSchema
 })
 
 export type Settings = z.infer<typeof SettingsSchema>
