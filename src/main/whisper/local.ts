@@ -46,6 +46,34 @@ export function parseWhisperJson(json: unknown): { language: string; words: Word
   return { language: j.result?.language ?? 'unknown', words }
 }
 
+/** Run whisper-cli; progress from its `-pp` output; the stderr tail is kept for error messages. */
+export function runWhisper(cli: string, args: string[], onProgress: (pct: number) => void, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(cli, args, { windowsHide: true })
+    const tail: string[] = []
+    const onAbort = (): void => {
+      child.kill()
+      reject(new Error('Transcription cancelled'))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    child.stderr.on('data', (buf: Buffer) => {
+      for (const line of buf.toString().split(/\r?\n/)) {
+        const m = /progress\s*=\s*(\d+)%/.exec(line)
+        if (m) onProgress(Number(m[1]))
+        else if (line.trim()) tail.push(line)
+      }
+      if (tail.length > 40) tail.splice(0, tail.length - 40)
+    })
+    child.stdout.resume()
+    child.on('error', reject)
+    child.on('close', (code) => {
+      signal?.removeEventListener('abort', onAbort)
+      if (code === 0) resolve()
+      else if (!signal?.aborted) reject(new Error(`Transcription failed (whisper exit ${code})\n${tail.slice(-8).join('\n')}`))
+    })
+  })
+}
+
 /** Run whisper.cpp on a 16 kHz mono WAV. Language is detected (English with Hindi/Marathi mixed in). */
 export async function transcribeLocal(
   engine: { cli: string; model: string },
@@ -59,30 +87,7 @@ export async function transcribeLocal(
   try {
     const threads = String(Math.max(2, cpus().length - 1))
     const args = ['-m', engine.model, '-f', wav, '-l', 'auto', '-ml', '1', '-sow', '-oj', '-of', join(work, 'out'), '-pp', '-t', threads]
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(engine.cli, args, { windowsHide: true })
-      const tail: string[] = []
-      const onAbort = (): void => {
-        child.kill()
-        reject(new Error('Transcription cancelled'))
-      }
-      signal?.addEventListener('abort', onAbort, { once: true })
-      child.stderr.on('data', (buf: Buffer) => {
-        for (const line of buf.toString().split(/\r?\n/)) {
-          const m = /progress\s*=\s*(\d+)%/.exec(line)
-          if (m) onProgress(Number(m[1]))
-          else if (line.trim()) tail.push(line)
-        }
-        if (tail.length > 40) tail.splice(0, tail.length - 40)
-      })
-      child.stdout.resume()
-      child.on('error', reject)
-      child.on('close', (code) => {
-        signal?.removeEventListener('abort', onAbort)
-        if (code === 0) resolve()
-        else if (!signal?.aborted) reject(new Error(`Transcription failed (whisper exit ${code})\n${tail.slice(-8).join('\n')}`))
-      })
-    })
+    await runWhisper(engine.cli, args, onProgress, signal)
     return parseWhisperJson(JSON.parse(await readFile(join(work, 'out.json'), 'utf8')))
   } finally {
     await rm(work, { recursive: true, force: true })
