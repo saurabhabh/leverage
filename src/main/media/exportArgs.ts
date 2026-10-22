@@ -58,9 +58,15 @@ function collectInputs(m: RecordingManifest, dir: string, kinds: TrackKind[]): I
   return present.map((p) => ({ ...p, offsetMs: p.offsetMs - first }))
 }
 
+const isAudio = (k: TrackKind): boolean => k === 'mic' || k === 'system'
+
+/**
+ * Video inputs are shifted with -itsoffset. Audio is delayed inside the graph instead (adelay):
+ * amix ignores input timestamps, so an -itsoffset on audio would be lost in the mix.
+ */
 function inputArgs(inputs: Input[]): string[] {
   return inputs.flatMap((i) =>
-    i.offsetMs > 0 ? ['-itsoffset', String(i.offsetMs / 1000), '-i', i.file] : ['-i', i.file]
+    i.offsetMs > 0 && !isAudio(i.kind) ? ['-itsoffset', String(i.offsetMs / 1000), '-i', i.file] : ['-i', i.file]
   )
 }
 
@@ -89,7 +95,8 @@ export function buildMp4Args(m: RecordingManifest, dir: string, out: string, opt
   for (const k of ['mic', 'system'] as const) {
     const i = index(k)
     if (i < 0) continue
-    filters.push(`[${i}:a]volume=${gains[k]}[a${k}]`)
+    const delay = inputs[i].offsetMs > 0 ? `adelay=${Math.round(inputs[i].offsetMs)}:all=1,` : ''
+    filters.push(`[${i}:a]${delay}volume=${gains[k]}[a${k}]`)
     audio.push(`[a${k}]`)
   }
   let audioLabel: string | null = null

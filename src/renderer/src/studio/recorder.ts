@@ -98,6 +98,8 @@ export class RecorderSession {
   onAutoStop: ((manifest: RecordingManifest) => void) | null = null
   /** Called when a track drops out mid-recording. */
   onTrackDisabled: ((kind: TrackKind, reason: string) => void) | null = null
+  /** A track failed to save or the recording could not be finished; the UI should say so. */
+  onError: ((kind: TrackKind, message: string) => void) | null = null
   /** Runs after the last chunk is written and before the recording is finalized (e.g. save bubble position). */
   beforeFinalize: (() => Promise<void>) | null = null
 
@@ -283,16 +285,26 @@ export class RecorderSession {
 
   private send(kind: TrackKind, data: Blob): void {
     if (data.size === 0) return
+    // Each write is isolated: one failure is reported and never blocks the chunks after it.
     this.sending = this.sending.then(async () => {
-      await this.deps.api['rec:chunk'](this.id, kind, await data.arrayBuffer())
+      try {
+        await this.deps.api['rec:chunk'](this.id, kind, await data.arrayBuffer())
+      } catch (err) {
+        this.onError?.(kind, err instanceof Error ? err.message : String(err))
+      }
     })
   }
 
   private async trackEnded(entry: Active): Promise<void> {
     if (this.state === 'stopped' || this.state === 'idle') return
     if (entry.kind === 'screen') {
-      const manifest = await this.stop()
-      this.onAutoStop?.(manifest)
+      try {
+        // Not `onAutoStop?.(await this.stop())`: optional calls skip their arguments when unset.
+        const manifest = await this.stop()
+        this.onAutoStop?.(manifest)
+      } catch (err) {
+        this.onError?.('screen', err instanceof Error ? err.message : String(err))
+      }
       return
     }
     const reason = DISCONNECTED[entry.kind]

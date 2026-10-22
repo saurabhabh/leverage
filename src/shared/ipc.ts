@@ -9,6 +9,8 @@ export type RecorderStatus = {
   /** Display being recorded; undefined for window capture (helpers then use the primary display). */
   displayId?: string
   cameraId?: string
+  /** Problems the user must see even with the main window minimized (e.g. a track dropped). */
+  warnings?: string[]
 }
 export type BubblePlacement = { xDip: number; yDip: number; sizeDip: number }
 import type { CreateInitPayload } from './recording'
@@ -41,6 +43,8 @@ export interface InvokeApi {
   'region:submit': (result: RegionPick | null) => Promise<void>
 
   'recorder:status': (status: RecorderStatus) => Promise<void>
+  /** Latest status, for helper windows that open after it was broadcast. */
+  'recorder:current': () => Promise<RecorderStatus>
   /** From the toolbar; abort is confirmed by main before it reaches the recorder. */
   'recorder:command': (command: RecorderCommand) => Promise<void>
   'bubble:placement': () => Promise<BubblePlacement | null>
@@ -77,6 +81,7 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'region:pick',
   'region:submit',
   'recorder:status',
+  'recorder:current',
   'recorder:command',
   'bubble:placement',
   'bubble:resize',

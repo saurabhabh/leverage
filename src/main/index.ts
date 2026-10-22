@@ -2,7 +2,8 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import trayIcon from '../../resources/icon.png?asset'
-import { onSettingsChanged, registerCoreIpc } from './ipc'
+import { onSettingsChanged, registerCoreIpc, setSenderGuard } from './ipc'
+import { isOwnUrl as isOwnUrlIn } from './security'
 import { initControl, registerHotkeysFromSettings } from './control'
 import { recoverInterrupted, registerRecordingIpc } from './recording/ipc'
 import { registerOverlayIpc } from './windows/overlay'
@@ -16,11 +17,23 @@ import {
 // Tests run against an isolated profile so they never touch the user's settings or library.
 if (process.env['LEVERAGE_USER_DATA']) app.setPath('userData', process.env['LEVERAGE_USER_DATA'])
 
-/** Leverage's own pages: the dev server in development, bundled files otherwise. */
-export function isOwnUrl(url: string): boolean {
-  const dev = process.env['ELECTRON_RENDERER_URL']
-  return url.startsWith('file://') || (!!dev && is.dev && url.startsWith(dev))
-}
+const rendererDir = join(__dirname, '../renderer')
+
+/** Leverage's own pages: bundled renderer files, or the dev server in development. */
+export const isOwnUrl = (url: string): boolean =>
+  isOwnUrlIn(url, rendererDir, is.dev ? process.env['ELECTRON_RENDERER_URL'] : undefined)
+
+// Every window: never navigate away from Leverage (Electron otherwise opens a file dropped on the
+// window, replacing the recorder), and only open https links, in the default browser.
+app.on('web-contents-created', (_e, contents) => {
+  contents.on('will-navigate', (event, url) => {
+    if (!isOwnUrl(url)) event.preventDefault()
+  })
+  contents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+})
 
 let mainWindow: BrowserWindow | undefined
 
@@ -50,11 +63,6 @@ function createWindow(): BrowserWindow {
     app.quit()
   })
 
-  win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
-
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -70,6 +78,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  setSenderGuard(isOwnUrl)
   registerCoreIpc()
   registerRecordingIpc()
   registerCaptureIpc()

@@ -51,9 +51,9 @@ export default function Studio(): React.JSX.Element {
     void window.leverage['recorder:status']({
       phase: p,
       elapsedMs: elapsed,
-      ...(p === 'idle' ? {} : target.current)
+      ...(p === 'idle' ? {} : { ...target.current, warnings })
     })
-  }, [phase.name, paused, elapsed])
+  }, [phase.name, paused, elapsed, warnings])
 
   useEffect(() => window.leverage.on('recorder:command', (c) => commands.current[c]()), [])
 
@@ -88,6 +88,11 @@ export default function Studio(): React.JSX.Element {
     const s = new RecorderSession(browserDeps())
     s.onAutoStop = finished
     s.onTrackDisabled = addWarning
+    s.onError = (kind, message) =>
+      setWarnings((w) => {
+        const text = `${TRACK_LABEL[kind]} could not be saved: ${message}`
+        return w.includes(text) ? w : [...w, text]
+      })
     target.current = { displayId: choice.source.displayId, cameraId: choice.cameraId }
     try {
       const { id, disabled } = await s.prepare({ ...choice, sourceId: choice.source.id, regionDip })
@@ -135,8 +140,10 @@ export default function Studio(): React.JSX.Element {
     try {
       finished(await s.stop())
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      session.current = null
+      setError(`The recording could not be finished: ${err instanceof Error ? err.message : String(err)}`)
       setPhase({ name: 'setup' })
+      void window.leverage['window:restore']()
     }
   }
 

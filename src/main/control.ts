@@ -54,15 +54,27 @@ async function command(c: RecorderCommand): Promise<void> {
 
 const trayActions = { command: (c: RecorderCommand) => void command(c), open: openMain }
 
+/** What decides helper-window layout and the tray menu; elapsed time and warnings do not. */
+export function layoutKey(s: RecorderStatus): string {
+  return JSON.stringify([s.phase, s.displayId ?? null, s.cameraId ?? null])
+}
+
+let lastLayout = ''
+
 function applyStatus(next: RecorderStatus): void {
   status = next
-  const active = next.phase === 'recording' || next.phase === 'paused' || next.phase === 'countdown'
-  const display = displayFor(next)
-  if (active) showToolbar(display.workArea)
-  else hideToolbar()
-  if (next.cameraId && (active || next.phase === 'saving')) showBubble(next.cameraId, display.bounds, display.workArea)
-  else hideBubble()
-  updateTray(next, trayActions)
+  const key = layoutKey(next)
+  if (key !== lastLayout) {
+    // Only on real changes: repositioning on every timer tick would undo the user dragging the toolbar.
+    lastLayout = key
+    const active = next.phase === 'recording' || next.phase === 'paused' || next.phase === 'countdown'
+    const display = displayFor(next)
+    if (active) showToolbar(display.workArea, String(display.id))
+    else hideToolbar()
+    if (next.cameraId && (active || next.phase === 'saving')) showBubble(next.cameraId, display.bounds, display.workArea)
+    else hideBubble()
+    updateTray(next, trayActions)
+  }
   broadcast('recorder:status', next)
 }
 
@@ -77,6 +89,7 @@ export function initControl(getMain: () => BrowserWindow | undefined, trayIcon: 
   createTray(trayIcon, trayActions)
   registerHotkeysFromSettings(getSettings())
   handle('recorder:status', (_e, next) => applyStatus(next))
+  handle('recorder:current', () => status)
   handle('recorder:command', (_e, c) => command(c))
   handle('bubble:placement', () => bubblePlacement())
   handle('bubble:resize', (_e, size) => resizeBubble(size))

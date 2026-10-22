@@ -4,14 +4,18 @@ import { toolbarBounds } from '../../shared/placement'
 import { helperWebPreferences, loadPage } from './load'
 
 let toolbar: BrowserWindow | null = null
+let placedOn: string | null = null
 
 /** Floating recording toolbar: timer, pause/resume, stop, abort. Never appears in the capture. */
-export function showToolbar(display: Rect): void {
+export function showToolbar(display: Rect, displayId: string): void {
   if (toolbar && !toolbar.isDestroyed()) {
-    toolbar.setBounds(toolbarBounds(display))
-    toolbar.showInactive()
+    // Keep wherever the user dragged it unless the recording moved to another display.
+    if (placedOn !== displayId) toolbar.setBounds(toolbarBounds(display))
+    placedOn = displayId
+    if (!toolbar.isVisible()) toolbar.showInactive()
     return
   }
+  placedOn = displayId
   toolbar = new BrowserWindow({
     ...toolbarBounds(display),
     frame: false,
@@ -36,4 +40,5 @@ export function showToolbar(display: Rect): void {
 export function hideToolbar(): void {
   if (toolbar && !toolbar.isDestroyed()) toolbar.close()
   toolbar = null
+  placedOn = null
 }

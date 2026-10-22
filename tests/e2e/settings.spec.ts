@@ -24,3 +24,15 @@ test('settings page loads defaults over the bridge and saves changes', async () 
 
   await app.close()
 })
+
+test('Settings warns about hotkeys that could not be registered', async () => {
+  const { app } = await launchIsolated({
+    // The same accelerator twice: the second registration is refused, like a hotkey owned by another app.
+    hotkeys: { toggle: 'CommandOrControl+Alt+F9', pause: 'CommandOrControl+Alt+F9', abort: 'CommandOrControl+Shift+X' }
+  })
+  const page = await app.firstWindow()
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await expect(page.getByRole('alert')).toContainText('Ctrl+Alt+F9')
+  await expect(page.getByRole('alert')).toContainText(/could not be registered/i)
+  await app.close()
+})

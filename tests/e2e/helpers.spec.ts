@@ -62,8 +62,12 @@ test('camera bubble shows during recording and its position is saved', async () 
   const library = await useTempLibrary(page)
   await page.getByRole('button', { name: 'Studio' }).click()
   await expect(page.locator('.source').first()).toBeVisible({ timeout: 15_000 })
-  const cameras = await page.locator('#camera option').count()
-  test.skip(cameras < 2, 'No camera on this machine')
+  // Devices load after the sources; give the camera list a moment before deciding there is none.
+  const cameras = await expect
+    .poll(() => page.locator('#camera option').count(), { timeout: 5000 })
+    .toBeGreaterThan(1)
+    .then(() => true, () => false)
+  test.skip(!cameras, 'No camera on this machine')
 
   await page.getByLabel('Camera').selectOption({ index: 1 })
   await page.getByLabel('Microphone').selectOption('')
@@ -84,5 +88,50 @@ test('camera bubble shows during recording and its position is saved', async () 
   expect(manifest.bubble.sizeDip).toBe(280)
   expect(manifest.tracks.camera).toBeTruthy()
   expect(existsSync(join(library, folder, 'camera.webm'))).toBe(true)
+  await app.close()
+})
+
+test('toolbar shows track warnings while the main window is minimized', async () => {
+  const { app } = await launchIsolated()
+  const page = await app.firstWindow()
+  // Studio reports 'idle' when it mounts; let that happen before simulating a recording status.
+  await expect(page.getByRole('heading', { name: 'New recording' })).toBeVisible()
+  const toolbarPromise = app.waitForEvent('window', (w) => w.url().includes('toolbar.html'))
+  await page.evaluate(() =>
+    window.leverage['recorder:status']({
+      phase: 'recording',
+      elapsedMs: 0,
+      warnings: ['Microphone is off: Microphone disconnected']
+    })
+  )
+  const toolbar = await toolbarPromise
+  await expect(toolbar.getByRole('alert')).toHaveAttribute('title', /Microphone disconnected/)
+  await page.evaluate(() => window.leverage['recorder:status']({ phase: 'idle', elapsedMs: 0 }))
+  await app.close()
+})
+
+test('the toolbar stays where the user drags it', async () => {
+  const { app } = await launchIsolated()
+  const page = await app.firstWindow()
+  // Studio reports 'idle' when it mounts; let that happen before simulating a recording status.
+  await expect(page.getByRole('heading', { name: 'New recording' })).toBeVisible()
+  const toolbarPromise = app.waitForEvent('window', (w) => w.url().includes('toolbar.html'))
+  await page.evaluate(() => window.leverage['recorder:status']({ phase: 'recording', elapsedMs: 0 }))
+  const toolbar = await toolbarPromise
+  await toolbar.waitForLoadState('domcontentloaded')
+  const moved = await app.evaluate(({ BrowserWindow }) => {
+    const tb = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('toolbar.html'))!
+    tb.setPosition(40, 40)
+    return tb.getPosition()
+  })
+  // Status updates keep arriving while recording (elapsed time changes).
+  for (let ms = 250; ms <= 1000; ms += 250) {
+    await page.evaluate((elapsedMs) => window.leverage['recorder:status']({ phase: 'recording', elapsedMs }), ms)
+  }
+  const after = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes('toolbar.html'))!.getPosition()
+  )
+  expect(after).toEqual(moved)
+  await page.evaluate(() => window.leverage['recorder:status']({ phase: 'idle', elapsedMs: 0 }))
   await app.close()
 })

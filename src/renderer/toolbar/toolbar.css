@@ -73,3 +73,10 @@ body,
     opacity: 0.35;
   }
 }
+
+.warn {
+  -webkit-app-region: no-drag;
+  color: #f5a524;
+  font-size: 16px;
+  cursor: help;
+}

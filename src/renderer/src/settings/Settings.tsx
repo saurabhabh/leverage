@@ -11,10 +11,15 @@ const pretty = (accelerator: string): string => accelerator.replace('CommandOrCo
 
 export default function Settings(): React.JSX.Element {
   const [settings, setSettings] = useState<SettingsT | null>(null)
+  const [failedHotkeys, setFailedHotkeys] = useState<string[]>([])
 
   useEffect(() => {
-    window.leverage['settings:get']().then(setSettings)
-    return window.leverage.on('settings:changed', setSettings)
+    const load = (s: SettingsT): void => {
+      setSettings(s)
+      window.leverage['hotkeys:failed']().then(setFailedHotkeys)
+    }
+    window.leverage['settings:get']().then(load)
+    return window.leverage.on('settings:changed', load)
   }, [])
 
   if (!settings) return <p className="muted">Loading…</p>
@@ -71,6 +76,12 @@ export default function Settings(): React.JSX.Element {
       <section className="card">
         <h2>Hotkeys</h2>
         <p className="muted">These work from any app while Leverage is running.</p>
+        {failedHotkeys.length > 0 && (
+          <div className="banner warning" role="alert">
+            {failedHotkeys.map(pretty).join(', ')} could not be registered — another app may already use{' '}
+            {failedHotkeys.length > 1 ? 'them' : 'it'}.
+          </div>
+        )}
         {(Object.keys(HOTKEY_LABELS) as (keyof SettingsT['hotkeys'])[]).map((k) => (
           <div className="row" key={k}>
             <label>{HOTKEY_LABELS[k]}</label>

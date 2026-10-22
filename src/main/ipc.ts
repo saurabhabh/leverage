@@ -9,8 +9,19 @@ type Handler<C extends InvokeChannel> = (
   ...args: Parameters<InvokeApi[C]>
 ) => ReturnType<InvokeApi[C]> | Awaited<ReturnType<InvokeApi[C]>>
 
+let isTrustedSender: (url: string) => boolean = () => false
+
+/** Only Leverage's own pages may call into the main process. */
+export const setSenderGuard = (guard: (url: string) => boolean): void => {
+  isTrustedSender = guard
+}
+
 export function handle<C extends InvokeChannel>(channel: C, handler: Handler<C>): void {
-  ipcMain.handle(channel, (event, ...args) => handler(event, ...(args as Parameters<InvokeApi[C]>)))
+  ipcMain.handle(channel, (event, ...args) => {
+    const url = event.senderFrame?.url ?? ''
+    if (!isTrustedSender(url)) throw new Error(`Blocked ${channel} from ${url || 'unknown sender'}`)
+    return handler(event, ...(args as Parameters<InvokeApi[C]>))
+  })
 }
 
 export function broadcast<C extends EventChannel>(channel: C, payload: EventMap[C]): void {

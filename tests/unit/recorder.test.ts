@@ -275,6 +275,44 @@ describe('RecorderSession', () => {
     expect(log[at + 1]).toMatch(/^finalize:/)
   })
 
+  test('a failed chunk write is reported at once and later chunks and finalize still happen', async () => {
+    const errors: string[] = []
+    let failNext = true
+    const chunk = deps.api['rec:chunk']
+    deps.api['rec:chunk'] = async (id, track, data) => {
+      if (failNext && track === 'screen') {
+        failNext = false
+        throw new Error('EIO: i/o error, write')
+      }
+      return chunk(id, track, data)
+    }
+    const s = new RecorderSession(deps)
+    s.onError = (kind, message) => errors.push(`${kind}:${message}`)
+    await s.prepare(allOn)
+    s.start()
+    recorderFor('screen').emit([1])
+    await flush()
+    expect(errors).toEqual(['screen:EIO: i/o error, write'])
+    recorderFor('screen').emit([2, 2])
+    await s.stop()
+    expect(log).toContain('chunk:screen:2')
+    expect(log.some((l) => l.startsWith('finalize:'))).toBe(true)
+  })
+
+  test('a failed auto-stop (screen ended) is reported, not left unhandled', async () => {
+    const errors: string[] = []
+    deps.api['rec:finalize'] = async () => {
+      throw new Error('disk full')
+    }
+    const s = new RecorderSession(deps)
+    s.onError = (kind, message) => errors.push(`${kind}:${message}`)
+    await s.prepare(allOn)
+    s.start()
+    tracks.screen.end()
+    for (let i = 0; i < 20 && errors.length === 0; i++) await flush()
+    expect(errors).toContain('screen:disk full')
+  })
+
   test('empty chunks are not sent', async () => {
     const s = new RecorderSession(deps)
     await s.prepare(allOn)

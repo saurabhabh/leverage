@@ -10,7 +10,10 @@ const mmss = (ms: number): string => {
 export default function Toolbar(): React.JSX.Element {
   const [status, setStatus] = useState<RecorderStatus>({ phase: 'countdown', elapsedMs: 0 })
 
-  useEffect(() => window.leverage.on('recorder:status', setStatus), [])
+  useEffect(() => {
+    void window.leverage['recorder:current']().then(setStatus)
+    return window.leverage.on('recorder:status', setStatus)
+  }, [])
 
   const send = (c: 'toggle' | 'pause' | 'abort') => () => void window.leverage['recorder:command'](c)
   const paused = status.phase === 'paused'
@@ -21,6 +24,11 @@ export default function Toolbar(): React.JSX.Element {
       <span className="time" aria-label="Elapsed time">
         {status.phase === 'countdown' ? 'Starting…' : mmss(status.elapsedMs)}
       </span>
+      {!!status.warnings?.length && (
+        <span className="warn" role="alert" title={status.warnings.join('\n')}>
+          ⚠
+        </span>
+      )}
       <button onClick={send('pause')} disabled={status.phase === 'countdown'} title="Pause / resume">
         {paused ? 'Resume' : 'Pause'}
       </button>
