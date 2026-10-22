@@ -11,8 +11,9 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  - node_modules/ffmpeg-static/**
 win:
-  executableName: scaffold
+  executableName: Leverage
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

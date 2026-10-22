@@ -6,6 +6,7 @@ import { onSettingsChanged, registerCoreIpc } from './ipc'
 import { initControl, registerHotkeysFromSettings } from './control'
 import { recoverInterrupted, registerRecordingIpc } from './recording/ipc'
 import { registerOverlayIpc } from './windows/overlay'
+import { registerExportIpc } from './media/exportIpc'
 import {
   installDisplayMediaHandler,
   installPermissionHandlers,
@@ -73,6 +74,7 @@ app.whenReady().then(() => {
   registerRecordingIpc()
   registerCaptureIpc()
   registerOverlayIpc()
+  registerExportIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()

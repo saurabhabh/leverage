@@ -46,6 +46,14 @@ export interface InvokeApi {
   'bubble:placement': () => Promise<BubblePlacement | null>
   'bubble:resize': (size: 'S' | 'M' | 'L') => Promise<void>
   'hotkeys:failed': () => Promise<string[]>
+
+  /** outPath skips the save dialog (tests); the result never overwrites an existing file. */
+  'export:mp4': (id: string, outPath?: string) => Promise<string | null>
+  'export:gif': (id: string, outPath?: string) => Promise<string | null>
+  'shell:showInFolder': (path: string) => Promise<void>
+  /** Moves the recording folder to the Recycle Bin. */
+  'rec:delete': (id: string) => Promise<void>
+  'rec:dir': (id: string) => Promise<string | null>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -72,7 +80,12 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'recorder:command',
   'bubble:placement',
   'bubble:resize',
-  'hotkeys:failed'
+  'hotkeys:failed',
+  'export:mp4',
+  'export:gif',
+  'shell:showInFolder',
+  'rec:delete',
+  'rec:dir'
 ]
 
 /** Main → renderer events. */
@@ -82,6 +95,7 @@ export interface EventMap {
   'recorder:status': RecorderStatus
   /** To the main window's recorder; abort here is already confirmed. */
   'recorder:command': RecorderCommand
+  'export:progress': { id: string; pct: number }
 }
 
 export type EventChannel = keyof EventMap
@@ -90,7 +104,8 @@ export const EVENT_CHANNELS: readonly EventChannel[] = [
   'settings:changed',
   'library:changed',
   'recorder:status',
-  'recorder:command'
+  'recorder:command',
+  'export:progress'
 ]
 
 export type LeverageApi = InvokeApi & {

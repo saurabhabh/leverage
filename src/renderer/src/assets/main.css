@@ -316,3 +316,59 @@ select {
   font-weight: 600;
   min-width: 80px;
 }
+
+.library-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.library-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.library-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff4d6;
+  color: #6b4e00;
+}
+
+@media (prefers-color-scheme: dark) {
+  .badge {
+    background: #3a2f10;
+    color: #f5d77a;
+  }
+}
+
+.progress {
+  margin-top: 12px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+.library-item .banner {
+  margin: 10px 0 0;
+}
