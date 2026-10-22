@@ -15,6 +15,7 @@ export type RecorderStatus = {
 export type BubblePlacement = { xDip: number; yDip: number; sizeDip: number }
 import type { CreateInitPayload } from './recording'
 import type { EditDoc } from './edit'
+import type { Transcript } from './transcript'
 
 export type OpenedEdit = { manifest: RecordingManifest; dir: string; edit: EditDoc; repaired: boolean; sourceMs: number }
 
@@ -76,6 +77,11 @@ export interface InvokeApi {
   /** Downloads (after the user confirmed in the UI) and verifies the engine and model. */
   'whisper:install': () => Promise<void>
   'whisper:cancel': () => Promise<void>
+
+  /** Rejects with NEEDS_INSTALL when the local engine is chosen but not installed. */
+  'transcribe:run': (id: string) => Promise<Transcript>
+  'transcribe:get': (id: string) => Promise<Transcript | null>
+  'transcribe:cancel': (id: string) => Promise<void>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -117,7 +123,10 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'ai:hasKeys',
   'whisper:status',
   'whisper:install',
-  'whisper:cancel'
+  'whisper:cancel',
+  'transcribe:run',
+  'transcribe:get',
+  'transcribe:cancel'
 ]
 
 /** Main → renderer events. */
@@ -129,6 +138,7 @@ export interface EventMap {
   'recorder:command': RecorderCommand
   'export:progress': { id: string; pct: number }
   'whisper:progress': { stage: 'engine' | 'model'; pct: number }
+  'transcribe:progress': { id: string; stage: string; pct: number }
 }
 
 export type EventChannel = keyof EventMap
@@ -139,7 +149,8 @@ export const EVENT_CHANNELS: readonly EventChannel[] = [
   'recorder:status',
   'recorder:command',
   'export:progress',
-  'whisper:progress'
+  'whisper:progress',
+  'transcribe:progress'
 ]
 
 export type LeverageApi = InvokeApi & {

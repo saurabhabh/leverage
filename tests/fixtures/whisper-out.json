@@ -1,0 +1,263 @@
+{
+	"systeminfo": "WHISPER : VITISAI = 0 | COREML = 0 | OPENVINO = 0 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | OPENMP = 1 | REPACK = 1 | ",
+	"model": {
+		"type": "base",
+		"multilingual": true,
+		"vocab": 51865,
+		"audio": {
+			"ctx": 1500,
+			"state": 512,
+			"head": 8,
+			"layer": 6
+		},
+		"text": {
+			"ctx": 448,
+			"state": 512,
+			"head": 8,
+			"layer": 6
+		},
+		"mels": 80,
+		"ftype": 1
+	},
+	"params": {
+		"model": "models/ggml-base.bin",
+		"language": "auto",
+		"translate": false
+	},
+	"result": {
+		"language": "en"
+	},
+	"transcription": [
+		{
+			"timestamps": {
+				"from": "00:00:00,000",
+				"to": "00:00:00,150"
+			},
+			"offsets": {
+				"from": 0,
+				"to": 150
+			},
+			"text": ""
+		},
+		{
+			"timestamps": {
+				"from": "00:00:00,150",
+				"to": "00:00:00,400"
+			},
+			"offsets": {
+				"from": 150,
+				"to": 400
+			},
+			"text": " Hello"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:00,400",
+				"to": "00:00:00,640"
+			},
+			"offsets": {
+				"from": 400,
+				"to": 640
+			},
+			"text": " and"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:00,640",
+				"to": "00:00:01,190"
+			},
+			"offsets": {
+				"from": 640,
+				"to": 1190
+			},
+			"text": " welcome"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:01,190",
+				"to": "00:00:01,350"
+			},
+			"offsets": {
+				"from": 1190,
+				"to": 1350
+			},
+			"text": " to"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:01,350",
+				"to": "00:00:02,580"
+			},
+			"offsets": {
+				"from": 1350,
+				"to": 2580
+			},
+			"text": " leverage."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:02,580",
+				"to": "00:00:03,240"
+			},
+			"offsets": {
+				"from": 2580,
+				"to": 3240
+			},
+			"text": " Um,"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:03,240",
+				"to": "00:00:03,430"
+			},
+			"offsets": {
+				"from": 3240,
+				"to": 3430
+			},
+			"text": " today"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:03,430",
+				"to": "00:00:03,490"
+			},
+			"offsets": {
+				"from": 3430,
+				"to": 3490
+			},
+			"text": " I"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:03,490",
+				"to": "00:00:03,740"
+			},
+			"offsets": {
+				"from": 3490,
+				"to": 3740
+			},
+			"text": " will"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:03,740",
+				"to": "00:00:03,990"
+			},
+			"offsets": {
+				"from": 3740,
+				"to": 3990
+			},
+			"text": " show"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:03,990",
+				"to": "00:00:04,170"
+			},
+			"offsets": {
+				"from": 3990,
+				"to": 4170
+			},
+			"text": " you"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:04,170",
+				"to": "00:00:04,350"
+			},
+			"offsets": {
+				"from": 4170,
+				"to": 4350
+			},
+			"text": " the"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:04,350",
+				"to": "00:00:04,880"
+			},
+			"offsets": {
+				"from": 4350,
+				"to": 4880
+			},
+			"text": " recorder."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:07,760",
+				"to": "00:00:07,760"
+			},
+			"offsets": {
+				"from": 7760,
+				"to": 7760
+			},
+			"text": " First,"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:07,760",
+				"to": "00:00:07,760"
+			},
+			"offsets": {
+				"from": 7760,
+				"to": 7760
+			},
+			"text": " pick"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:07,760",
+				"to": "00:00:07,910"
+			},
+			"offsets": {
+				"from": 7760,
+				"to": 7910
+			},
+			"text": " your"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:07,910",
+				"to": "00:00:09,920"
+			},
+			"offsets": {
+				"from": 7910,
+				"to": 9920
+			},
+			"text": " screen."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:09,920",
+				"to": "00:00:10,340"
+			},
+			"offsets": {
+				"from": 9920,
+				"to": 10340
+			},
+			"text": " Then"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:10,340",
+				"to": "00:00:10,430"
+			},
+			"offsets": {
+				"from": 10340,
+				"to": 10430
+			},
+			"text": " press"
+		},
+		{
+			"timestamps": {
+				"from": "00:00:10,430",
+				"to": "00:00:11,360"
+			},
+			"offsets": {
+				"from": 10430,
+				"to": 11360
+			},
+			"text": " record."
+		}
+	]
+}

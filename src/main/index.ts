@@ -11,6 +11,7 @@ import { registerExportIpc } from './media/exportIpc'
 import { registerEditIpc, registerMediaScheme } from './edit/ipc'
 import { registerKeyIpc } from './ai/keys'
 import { registerWhisperIpc } from './whisper/ipc'
+import { registerTranscribeIpc } from './transcribe/ipc'
 import {
   installDisplayMediaHandler,
   installPermissionHandlers,
@@ -92,6 +93,7 @@ app.whenReady().then(() => {
   registerEditIpc()
   registerKeyIpc()
   registerWhisperIpc()
+  registerTranscribeIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()
