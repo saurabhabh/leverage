@@ -71,6 +71,11 @@ export interface InvokeApi {
   /** Write-only: an empty key removes it. There is deliberately no way to read a key back. */
   'ai:setKey': (provider: 'groq' | 'openrouter', key: string) => Promise<void>
   'ai:hasKeys': () => Promise<{ groq: boolean; openrouter: boolean }>
+
+  'whisper:status': () => Promise<{ engine: boolean; model: boolean; dir: string }>
+  /** Downloads (after the user confirmed in the UI) and verifies the engine and model. */
+  'whisper:install': () => Promise<void>
+  'whisper:cancel': () => Promise<void>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -109,7 +114,10 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'edit:overlayPng',
   'edit:mediaUrl',
   'ai:setKey',
-  'ai:hasKeys'
+  'ai:hasKeys',
+  'whisper:status',
+  'whisper:install',
+  'whisper:cancel'
 ]
 
 /** Main → renderer events. */
@@ -120,6 +128,7 @@ export interface EventMap {
   /** To the main window's recorder; abort here is already confirmed. */
   'recorder:command': RecorderCommand
   'export:progress': { id: string; pct: number }
+  'whisper:progress': { stage: 'engine' | 'model'; pct: number }
 }
 
 export type EventChannel = keyof EventMap
@@ -129,7 +138,8 @@ export const EVENT_CHANNELS: readonly EventChannel[] = [
   'library:changed',
   'recorder:status',
   'recorder:command',
-  'export:progress'
+  'export:progress',
+  'whisper:progress'
 ]
 
 export type LeverageApi = InvokeApi & {

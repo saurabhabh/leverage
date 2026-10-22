@@ -10,6 +10,7 @@ import { registerOverlayIpc } from './windows/overlay'
 import { registerExportIpc } from './media/exportIpc'
 import { registerEditIpc, registerMediaScheme } from './edit/ipc'
 import { registerKeyIpc } from './ai/keys'
+import { registerWhisperIpc } from './whisper/ipc'
 import {
   installDisplayMediaHandler,
   installPermissionHandlers,
@@ -90,6 +91,7 @@ app.whenReady().then(() => {
   registerExportIpc()
   registerEditIpc()
   registerKeyIpc()
+  registerWhisperIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()
