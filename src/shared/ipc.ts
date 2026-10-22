@@ -84,6 +84,11 @@ export interface InvokeApi {
   'transcribe:cancel': (id: string) => Promise<void>
   /** Long pauses in the speech track, on the source timeline. */
   'autocut:silences': (id: string) => Promise<{ startMs: number; endMs: number }[]>
+  /** Only the transcript text is sent to the provider chosen in Settings. */
+  'ai:suggestCuts': (
+    id: string,
+    targetSeconds?: number
+  ) => Promise<{ cuts: { from: number; to: number; reason: string; startMs: number; endMs: number }[]; dropped: number }>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -129,7 +134,8 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'transcribe:run',
   'transcribe:get',
   'transcribe:cancel',
-  'autocut:silences'
+  'autocut:silences',
+  'ai:suggestCuts'
 ]
 
 /** Main → renderer events. */

@@ -37,6 +37,7 @@ import { clock } from './time'
 import { exportRecording } from './exportPrep'
 import TranscriptPanel, { type WordSelection } from './TranscriptPanel'
 import AutoCuts from './AutoCuts'
+import AiSuggestions from './AiSuggestions'
 import { fillerRanges, type Range } from '../../../shared/transcript'
 import type { Transcript } from '../../../shared/transcript'
 import './editor.css'
@@ -474,7 +475,13 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
                     hasTranscript={!!transcript?.words.length}
                     onRemovePauses={async () => removeRanges(await window.leverage['autocut:silences'](recordingId))}
                     onRemoveFillers={() => removeRanges(fillerRanges(transcript?.words ?? []))}
-                  />
+                  >
+                    <AiSuggestions
+                      recordingId={recordingId}
+                      words={transcript?.words ?? []}
+                      onApply={(cuts) => removeRanges(cuts)}
+                    />
+                  </AutoCuts>
                 </TranscriptPanel>
               )}
               {sideTab === 'properties' && !selectedOverlay && urls.camera && edit.camera && (

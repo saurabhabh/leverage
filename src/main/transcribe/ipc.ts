@@ -6,6 +6,8 @@ import { ffmpegStderr } from '../media/ffmpeg'
 import { probeDurationSeconds } from '../media/probe'
 import { keyStore } from '../ai/keys'
 import { transcribeGroq } from '../ai/groq'
+import { chat } from '../ai/chat'
+import { buildSuggestPrompt, parseSuggestions } from '../ai/suggest'
 import { broadcast, getSettings, handle } from '../ipc'
 import { libraryStore } from '../recording/ipc'
 import { cliPath, modelPath, whisperStatus } from '../whisper/install'
@@ -92,7 +94,34 @@ async function silences(id: string): Promise<Range[]> {
   return parseSilences(stderr, 250, endMs).map((r) => ({ startMs: r.startMs + speech.offsetMs, endMs: r.endMs + speech.offsetMs }))
 }
 
+/** Ask the chosen provider for cuts. Only the transcript text is sent. */
+async function suggestCuts(id: string, targetSeconds?: number): Promise<{
+  cuts: { from: number; to: number; reason: string; startMs: number; endMs: number }[]
+  dropped: number
+}> {
+  const { dir } = await recording(id)
+  const transcript = await readTranscript(dir)
+  if (!transcript?.words.length) throw new Error('Transcribe the recording first.')
+  const { suggestions, groqChatModel, openrouterModel } = getSettings().ai
+  const name = suggestions === 'groq' ? 'Groq' : 'OpenRouter'
+  const key = keyStore().get(suggestions)
+  if (!key) throw new Error(`Add a ${name} API key in Settings`)
+  const prompt = buildSuggestPrompt(transcript.words, { targetSeconds })
+  const reply = await chat(suggestions, key, suggestions === 'groq' ? groqChatModel : openrouterModel, [
+    { role: 'system', content: prompt.system },
+    { role: 'user', content: prompt.user }
+  ])
+  const parsed = parseSuggestions(reply, transcript.words.length)
+  if (parsed.error) throw new Error(parsed.error)
+  const w = transcript.words
+  return {
+    cuts: parsed.cuts.map((c) => ({ ...c, startMs: w[c.from].startMs, endMs: w[c.to].endMs })),
+    dropped: parsed.dropped
+  }
+}
+
 export function registerTranscribeIpc(): void {
+  handle('ai:suggestCuts', (_e, id, targetSeconds) => suggestCuts(id, targetSeconds))
   handle('autocut:silences', (_e, id) => silences(id))
   handle('transcribe:run', (_e, id) => run(id))
   handle('transcribe:get', async (_e, id) => readTranscript((await recording(id)).dir))

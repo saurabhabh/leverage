@@ -457,7 +457,12 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
-  overflow: hidden;
+  /* The whole panel scrolls; the words keep a usable height of their own. */
+  overflow-y: auto;
+}
+
+.transcript-panel > * {
+  flex-shrink: 0;
 }
 
 .transcript-actions {
@@ -478,6 +483,8 @@
 
 .transcript-words {
   margin: 0;
+  min-height: 72px;
+  max-height: 45vh;
   overflow-y: auto;
   line-height: 1.9;
   font-size: 14px;
@@ -547,4 +554,58 @@
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
+}
+
+.ai-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.target {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.target input {
+  width: 56px;
+  padding: 4px 6px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.suggestion {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.suggestion-words {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.suggestion-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }

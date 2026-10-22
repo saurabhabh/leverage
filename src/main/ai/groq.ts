@@ -1,10 +1,7 @@
 import { readFile } from 'fs/promises'
 import { basename } from 'path'
 import type { Word } from '../../shared/transcript'
-import { providerFetch } from './chat'
-
-/** Overridable for tests only. */
-export const groqBase = (): string => process.env['LEVERAGE_GROQ_URL'] ?? 'https://api.groq.com/openai/v1'
+import { groqBase, providerFetch } from './chat'
 
 export const GROQ_TRANSCRIBE_MODEL = 'whisper-large-v3-turbo'
 
