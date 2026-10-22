@@ -21,11 +21,19 @@ export const HotkeysSchema = z.object({
   abort: z.string().min(1)
 })
 
+export const AiSettingsSchema = z.object({
+  transcription: z.enum(['local', 'groq']),
+  suggestions: z.enum(['groq', 'openrouter']),
+  groqChatModel: z.string().min(1),
+  openrouterModel: z.string().min(1)
+})
+
 export const SettingsSchema = z.object({
   libraryDir: z.string().min(1),
   countdownSec: z.number().int().min(0).max(10),
   confirmAbort: z.boolean(),
-  hotkeys: HotkeysSchema
+  hotkeys: HotkeysSchema,
+  ai: AiSettingsSchema
 })
 
 export type Settings = z.infer<typeof SettingsSchema>

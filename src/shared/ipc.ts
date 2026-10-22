@@ -67,6 +67,10 @@ export interface InvokeApi {
   'edit:overlayPng': (id: string, overlayId: string, data: ArrayBuffer) => Promise<void>
   /** leverage-media:// URL for a track; renderers never see file paths. */
   'edit:mediaUrl': (id: string, track: TrackKind) => Promise<string>
+
+  /** Write-only: an empty key removes it. There is deliberately no way to read a key back. */
+  'ai:setKey': (provider: 'groq' | 'openrouter', key: string) => Promise<void>
+  'ai:hasKeys': () => Promise<{ groq: boolean; openrouter: boolean }>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -103,7 +107,9 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'edit:open',
   'edit:save',
   'edit:overlayPng',
-  'edit:mediaUrl'
+  'edit:mediaUrl',
+  'ai:setKey',
+  'ai:hasKeys'
 ]
 
 /** Main → renderer events. */

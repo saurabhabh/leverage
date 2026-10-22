@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Settings as SettingsT } from '../../../shared/types'
+import AiSettings from './AiSettings'
 
 const HOTKEY_LABELS: Record<keyof SettingsT['hotkeys'], string> = {
   toggle: 'Start / stop recording',
@@ -89,6 +90,8 @@ export default function Settings(): React.JSX.Element {
           </div>
         ))}
       </section>
+
+      <AiSettings settings={settings} update={update} />
     </div>
   )
 }

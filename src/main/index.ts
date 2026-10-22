@@ -9,6 +9,7 @@ import { recoverInterrupted, registerRecordingIpc } from './recording/ipc'
 import { registerOverlayIpc } from './windows/overlay'
 import { registerExportIpc } from './media/exportIpc'
 import { registerEditIpc, registerMediaScheme } from './edit/ipc'
+import { registerKeyIpc } from './ai/keys'
 import {
   installDisplayMediaHandler,
   installPermissionHandlers,
@@ -88,6 +89,7 @@ app.whenReady().then(() => {
   registerOverlayIpc()
   registerExportIpc()
   registerEditIpc()
+  registerKeyIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()

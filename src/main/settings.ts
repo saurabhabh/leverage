@@ -11,6 +11,12 @@ export function defaultSettings(home: string): Settings {
       toggle: 'CommandOrControl+Shift+R',
       pause: 'CommandOrControl+Shift+P',
       abort: 'CommandOrControl+Shift+X'
+    },
+    ai: {
+      transcription: 'local',
+      suggestions: 'groq',
+      groqChatModel: 'openai/gpt-oss-120b',
+      openrouterModel: 'anthropic/claude-sonnet-5.5'
     }
   }
 }
