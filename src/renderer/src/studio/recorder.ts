@@ -1,5 +1,6 @@
 import type { InvokeApi } from '../../../shared/ipc'
 import type { CaptureSource, RecordingManifest, Rect, TrackKind } from '../../../shared/types'
+import { dipRectToVideoRect } from '../../../shared/region'
 import { pickMimeType } from './mime'
 
 /** Structural subsets of the browser media types, so the session can be tested without a browser. */
@@ -46,7 +47,8 @@ export type PrepareOptions = {
   cameraId?: string
   micId?: string
   systemAudio: boolean
-  crop?: Rect
+  /** Area drawn in the region overlay, in global DIP; becomes the manifest crop. */
+  regionDip?: Rect
 }
 
 export type PrepareResult = { id: string; disabled: Partial<Record<TrackKind, string>> }
@@ -156,6 +158,8 @@ export class RecorderSession {
     for (const k of kinds) mimes[k] = pickMimeType(k === 'screen' || k === 'camera' ? 'video' : 'audio', this.deps.isTypeSupported)
 
     const { width = 0, height = 0 } = screenTrack.getSettings()
+    const bounds = opts.source.displayBoundsDip
+    const crop = opts.regionDip && bounds && width && height ? dipRectToVideoRect(opts.regionDip, bounds, { width, height }) : undefined
     try {
       const created = await api['rec:create']({
         source: {
@@ -165,7 +169,7 @@ export class RecorderSession {
           ...(opts.source.displayBoundsDip ? { displayBoundsDip: opts.source.displayBoundsDip } : {})
         },
         videoSize: { width, height },
-        ...(opts.crop ? { crop: opts.crop } : {}),
+        ...(crop ? { crop } : {}),
         tracks: kinds,
         mimes
       })

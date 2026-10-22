@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerCoreIpc } from './ipc'
 import { recoverInterrupted, registerRecordingIpc } from './recording/ipc'
+import { registerOverlayIpc } from './windows/overlay'
 import { installDisplayMediaHandler, installPermissionHandlers, registerCaptureIpc } from './capture/ipc'
 
 // Tests run against an isolated profile so they never touch the user's settings or library.
@@ -60,6 +61,7 @@ app.whenReady().then(() => {
   registerCoreIpc()
   registerRecordingIpc()
   registerCaptureIpc()
+  registerOverlayIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()

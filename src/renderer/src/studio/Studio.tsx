@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { RecordingManifest, TrackKind } from '../../../shared/types'
+import type { Rect, RecordingManifest, TrackKind } from '../../../shared/types'
 import RecordSetup, { type RecordChoice } from './RecordSetup'
 import { RecorderSession } from './recorder'
 import { browserDeps } from './browserDeps'
@@ -57,7 +57,7 @@ export default function Studio(): React.JSX.Element {
     void window.leverage['window:minimize']()
   }
 
-  const record = async (choice: RecordChoice): Promise<void> => {
+  const record = async (choice: RecordChoice, regionDip?: Rect): Promise<void> => {
     setError(null)
     setWarnings([])
     setPhase({ name: 'preparing' })
@@ -65,7 +65,7 @@ export default function Studio(): React.JSX.Element {
     s.onAutoStop = finished
     s.onTrackDisabled = addWarning
     try {
-      const { disabled } = await s.prepare({ ...choice, sourceId: choice.source.id })
+      const { disabled } = await s.prepare({ ...choice, sourceId: choice.source.id, regionDip })
       for (const [kind, reason] of Object.entries(disabled) as [TrackKind, string][]) addWarning(kind, reason)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -83,6 +83,19 @@ export default function Studio(): React.JSX.Element {
       window.clearInterval(countdownTimer.current!)
       begin()
     }, 1000)
+  }
+
+  const recordRegion = async (devices: Omit<RecordChoice, 'source'>): Promise<void> => {
+    setError(null)
+    const picked = await window.leverage['region:pick']()
+    if (!picked) return
+    const sources = await window.leverage['capture:list']()
+    const source = sources.find((s) => s.kind === 'screen' && s.displayId === picked.displayId)
+    if (!source) {
+      setError('That screen is no longer available.')
+      return
+    }
+    await record({ ...devices, source }, picked.rectDip)
   }
 
   const stop = async (): Promise<void> => {
@@ -133,7 +146,11 @@ export default function Studio(): React.JSX.Element {
       )}
 
       {(phase.name === 'setup' || phase.name === 'preparing') && (
-        <RecordSetup busy={phase.name === 'preparing'} onRecord={record} />
+        <RecordSetup
+          busy={phase.name === 'preparing'}
+          onRecord={(c) => void record(c)}
+          onRegion={(d) => void recordRegion(d)}
+        />
       )}
 
       {phase.name === 'countdown' && (

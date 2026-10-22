@@ -200,6 +200,18 @@ describe('RecorderSession', () => {
     await expect(new RecorderSession(deps).prepare({ ...allOn, systemAudio: false })).rejects.toThrow('denied')
   })
 
+  test('a region drawn in DIP becomes a crop in captured-video pixels', async () => {
+    let crop: unknown
+    const create = deps.api['rec:create']
+    deps.api['rec:create'] = async (init) => {
+      crop = init.crop
+      return create(init)
+    }
+    // source display is 1280×720 DIP; the fake screen track reports 1920×1080.
+    await new RecorderSession(deps).prepare({ ...allOn, regionDip: { x: 100, y: 100, width: 201, height: 101 } })
+    expect(crop).toEqual({ x: 150, y: 150, width: 300, height: 150 })
+  })
+
   test('devices switched off are not opened and not reported as disabled', async () => {
     const result = await new RecorderSession(deps).prepare({ ...allOn, cameraId: undefined, systemAudio: false })
     expect(result.disabled).toEqual({})

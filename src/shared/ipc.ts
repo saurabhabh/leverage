@@ -1,4 +1,6 @@
-import type { CaptureSource, RecordingManifest, Settings, TrackKind } from './types'
+import type { CaptureSource, RecordingManifest, Rect, Settings, TrackKind } from './types'
+
+export type RegionPick = { displayId: string; rectDip: Rect }
 import type { CreateInitPayload } from './recording'
 
 /**
@@ -24,6 +26,9 @@ export interface InvokeApi {
 
   'window:minimize': () => Promise<void>
   'window:restore': () => Promise<void>
+
+  'region:pick': () => Promise<RegionPick | null>
+  'region:submit': (result: RegionPick | null) => Promise<void>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -43,7 +48,9 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'capture:list',
   'capture:select',
   'window:minimize',
-  'window:restore'
+  'window:restore',
+  'region:pick',
+  'region:submit'
 ]
 
 /** Main → renderer events. */
