@@ -18,7 +18,9 @@ export default defineConfig({
           index: resolve('src/renderer/index.html'),
           overlay: resolve('src/renderer/overlay.html'),
           toolbar: resolve('src/renderer/toolbar.html'),
-          bubble: resolve('src/renderer/bubble.html')
+          bubble: resolve('src/renderer/bubble.html'),
+          'snap-overlay': resolve('src/renderer/snap-overlay.html'),
+          pin: resolve('src/renderer/pin.html')
         }
       }
     }

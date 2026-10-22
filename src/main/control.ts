@@ -2,7 +2,8 @@ import { BrowserWindow, dialog, globalShortcut, screen } from 'electron'
 import type { RecorderCommand, RecorderStatus } from '../shared/ipc'
 import type { Settings } from '../shared/types'
 import { broadcast, getSettings, handle } from './ipc'
-import { registerHotkeys } from './hotkeys'
+import { registerHotkeys, registerOne } from './hotkeys'
+import { triggerSnap } from './snap/ipc'
 import { createTray, updateTray } from './tray'
 import { hideToolbar, showToolbar } from './windows/toolbar'
 import { bubblePlacement, hideBubble, resizeBubble, showBubble } from './windows/bubble'
@@ -52,7 +53,7 @@ async function command(c: RecorderCommand): Promise<void> {
   mainWindow()?.webContents.send('recorder:command', c)
 }
 
-const trayActions = { command: (c: RecorderCommand) => void command(c), open: openMain }
+const trayActions = { command: (c: RecorderCommand) => void command(c), open: openMain, snap: () => triggerSnap() }
 
 /** What decides helper-window layout and the tray menu; elapsed time and warnings do not. */
 export function layoutKey(s: RecorderStatus): string {
@@ -80,8 +81,10 @@ function applyStatus(next: RecorderStatus): void {
 
 export function registerHotkeysFromSettings(settings: Settings): void {
   registered.forEach((a) => globalShortcut.unregister(a))
-  failedHotkeys = registerHotkeys(settings.hotkeys, (c) => void command(c), (a, cb) => globalShortcut.register(a, cb))
-  registered = Object.values(settings.hotkeys).filter((a) => !failedHotkeys.includes(a))
+  const register = (a: string, cb: () => void): boolean => globalShortcut.register(a, cb)
+  failedHotkeys = registerHotkeys(settings.hotkeys, (c) => void command(c), register)
+  if (!registerOne(settings.snap.hotkey, () => triggerSnap(), register)) failedHotkeys.push(settings.snap.hotkey)
+  registered = [...Object.values(settings.hotkeys), settings.snap.hotkey].filter((a) => !failedHotkeys.includes(a))
 }
 
 export function initControl(getMain: () => BrowserWindow | undefined, trayIcon: string): void {

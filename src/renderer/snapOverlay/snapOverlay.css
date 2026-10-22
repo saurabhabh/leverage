@@ -1,0 +1,134 @@
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+}
+
+.snap-overlay {
+  position: fixed;
+  inset: 0;
+  /* The frozen screen, one image pixel per device pixel. */
+  background-size: 100% 100%;
+}
+
+.snap-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.hint {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 22, 0.88);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.snap-selection {
+  position: absolute;
+  outline: 1px solid #ff6369;
+  /* Punch the selection out of the dim layer (Flameshot dims the outside only). */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+}
+
+.size {
+  position: absolute;
+  left: 0;
+  top: -26px;
+  background: #ff6369;
+  color: #111;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.size.inside {
+  top: 4px;
+  left: 4px;
+}
+
+.handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  border: 1px solid #ff6369;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.handle.nw {
+  left: 0;
+  top: 0;
+}
+.handle.n {
+  left: 50%;
+  top: 0;
+}
+.handle.ne {
+  left: 100%;
+  top: 0;
+}
+.handle.e {
+  left: 100%;
+  top: 50%;
+}
+.handle.se {
+  left: 100%;
+  top: 100%;
+}
+.handle.s {
+  left: 50%;
+  top: 100%;
+}
+.handle.sw {
+  left: 0;
+  top: 100%;
+}
+.handle.w {
+  left: 0;
+  top: 50%;
+}
+
+.snap-actions {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  display: flex;
+  gap: 4px;
+  background: rgba(20, 20, 22, 0.92);
+  padding: 4px;
+  border-radius: 8px;
+  cursor: default;
+}
+.snap-actions.above {
+  top: auto;
+  bottom: 8px;
+  right: 8px;
+}
+.snap-actions button {
+  background: transparent;
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.snap-actions button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}

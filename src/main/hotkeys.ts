@@ -14,13 +14,16 @@ export function registerHotkeys(
   const failed: string[] = []
   for (const command of ['toggle', 'pause', 'abort'] as const) {
     const accelerator = hotkeys[command]
-    let ok = false
-    try {
-      ok = register(accelerator, () => send(command))
-    } catch {
-      ok = false
-    }
-    if (!ok) failed.push(accelerator)
+    if (!registerOne(accelerator, () => send(command), register)) failed.push(accelerator)
   }
   return failed
+}
+
+/** Register one accelerator; false if it is taken or invalid. */
+export function registerOne(accelerator: string, callback: () => void, register: Register): boolean {
+  try {
+    return register(accelerator, callback)
+  } catch {
+    return false
+  }
 }

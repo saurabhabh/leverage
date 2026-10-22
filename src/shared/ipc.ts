@@ -16,6 +16,10 @@ export type BubblePlacement = { xDip: number; yDip: number; sizeDip: number }
 import type { CreateInitPayload } from './recording'
 import type { EditDoc } from './edit'
 import type { Transcript } from './transcript'
+import type { SnapAction, SnapDoc, SnapEntry, SnapMode } from './snap'
+
+/** From the Snap region overlay: the selection (global DIP) and what to do with it. */
+export type SnapSelection = { displayId: string; rectDip: Rect; action: SnapAction }
 
 export type OpenedEdit = { manifest: RecordingManifest; dir: string; edit: EditDoc; repaired: boolean; sourceMs: number }
 
@@ -89,6 +93,32 @@ export interface InvokeApi {
     id: string,
     targetSeconds?: number
   ) => Promise<{ cuts: { from: number; to: number; reason: string; startMs: number; endMs: number }[]; dropped: number }>
+
+  /** Start a capture; hides the main window first. Resolves once the shot is handled (or cancelled). */
+  'snap:capture': (mode: SnapMode, delaySec?: number) => Promise<void>
+  /** Overlay: PNG of its display's frozen image. */
+  'snap:frozen': (displayId: string) => Promise<ArrayBuffer>
+  /** Overlay: frozen image painted, show the window. */
+  'snap:ready': () => Promise<void>
+  'snap:select': (selection: SnapSelection | null) => Promise<void>
+  'snap:list': () => Promise<SnapEntry[]>
+  'snap:get': (id: string) => Promise<SnapDoc>
+  'snap:image': (id: string, which: 'original' | 'rendered') => Promise<ArrayBuffer>
+  /** Store an edit: the shape list plus the rendered (cropped) PNG. */
+  'snap:save': (id: string, doc: SnapDoc, png: ArrayBuffer) => Promise<SnapDoc>
+  'snap:copy': (id: string) => Promise<void>
+  /** outPath skips the dialog (tests); never overwrites. */
+  'snap:saveAs': (id: string, outPath?: string) => Promise<string | null>
+  'snap:pin': (id: string) => Promise<void>
+  'snap:show': (id: string) => Promise<void>
+  /** Moves the PNG and its edit data to the Recycle Bin. */
+  'snap:delete': (id: string) => Promise<void>
+
+  /** Pin window controls; they act on the calling window. */
+  'pin:move': (dx: number, dy: number) => Promise<void>
+  'pin:zoom': (factor: number) => Promise<void>
+  'pin:opacity': (delta: number) => Promise<void>
+  'pin:close': () => Promise<void>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -135,7 +165,24 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'transcribe:get',
   'transcribe:cancel',
   'autocut:silences',
-  'ai:suggestCuts'
+  'ai:suggestCuts',
+  'snap:capture',
+  'snap:frozen',
+  'snap:ready',
+  'snap:select',
+  'snap:list',
+  'snap:get',
+  'snap:image',
+  'snap:save',
+  'snap:copy',
+  'snap:saveAs',
+  'snap:pin',
+  'snap:show',
+  'snap:delete',
+  'pin:move',
+  'pin:zoom',
+  'pin:opacity',
+  'pin:close'
 ]
 
 /** Main → renderer events. */
@@ -148,6 +195,9 @@ export interface EventMap {
   'export:progress': { id: string; pct: number }
   'whisper:progress': { stage: 'engine' | 'model'; pct: number }
   'transcribe:progress': { id: string; stage: string; pct: number }
+  /** Open this shot in the Snap editor (main window). */
+  'snap:open': { id: string }
+  'snap:changed': null
 }
 
 export type EventChannel = keyof EventMap
@@ -159,7 +209,9 @@ export const EVENT_CHANNELS: readonly EventChannel[] = [
   'recorder:command',
   'export:progress',
   'whisper:progress',
-  'transcribe:progress'
+  'transcribe:progress',
+  'snap:open',
+  'snap:changed'
 ]
 
 export type LeverageApi = InvokeApi & {

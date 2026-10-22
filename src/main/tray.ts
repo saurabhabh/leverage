@@ -3,7 +3,7 @@ import type { RecorderCommand, RecorderStatus } from '../shared/ipc'
 
 let tray: Tray | null = null
 
-type TrayActions = { command: (c: RecorderCommand) => void; open: () => void }
+type TrayActions = { command: (c: RecorderCommand) => void; open: () => void; snap: () => void }
 
 export function createTray(icon: string, actions: TrayActions): void {
   tray = new Tray(nativeImage.createFromPath(icon).resize({ width: 16, height: 16 }))
@@ -25,6 +25,8 @@ export function updateTray(status: RecorderStatus, actions: TrayActions): void {
         click: () => actions.command('pause')
       },
       { label: 'Abort recording', enabled: active, click: () => actions.command('abort') },
+      { type: 'separator' },
+      { label: 'Take screenshot', click: actions.snap },
       { type: 'separator' },
       { label: 'Open Leverage', click: actions.open },
       { label: 'Quit', click: () => app.quit() }
