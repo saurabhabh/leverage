@@ -264,6 +264,17 @@ describe('RecorderSession', () => {
     expect(Object.values(tracks).every((t) => t.stopped)).toBe(true)
   })
 
+  test('beforeFinalize runs after the last chunk and before rec:finalize', async () => {
+    const s = new RecorderSession(deps)
+    s.beforeFinalize = async () => void log.push('before-finalize')
+    await s.prepare(allOn)
+    s.start()
+    await s.stop()
+    const at = log.indexOf('before-finalize')
+    expect(at).toBeGreaterThan(log.findLastIndex((l) => l.startsWith('chunk:')))
+    expect(log[at + 1]).toMatch(/^finalize:/)
+  })
+
   test('empty chunks are not sent', async () => {
     const s = new RecorderSession(deps)
     await s.prepare(allOn)

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { RecorderCommand, RecorderStatus } from '../../../shared/ipc'
 import type { Rect, RecordingManifest, TrackKind } from '../../../shared/types'
 import RecordSetup, { type RecordChoice } from './RecordSetup'
 import { RecorderSession } from './recorder'
@@ -32,6 +33,29 @@ export default function Studio(): React.JSX.Element {
   const [elapsed, setElapsed] = useState(0)
   const session = useRef<RecorderSession | null>(null)
   const countdownTimer = useRef<number | null>(null)
+  const latestChoice = useRef<RecordChoice | null>(null)
+  const target = useRef<{ displayId?: string; cameraId?: string }>({})
+  const commands = useRef<Record<RecorderCommand, () => void>>({ toggle: () => {}, pause: () => {}, abort: () => {} })
+
+  // Tell the toolbar, bubble, tray and hotkeys what the recorder is doing.
+  useEffect(() => {
+    const phaseOf: Record<Phase['name'], RecorderStatus['phase']> = {
+      setup: 'idle',
+      preparing: 'idle',
+      done: 'idle',
+      countdown: 'countdown',
+      recording: paused ? 'paused' : 'recording',
+      saving: 'saving'
+    }
+    const p = phaseOf[phase.name]
+    void window.leverage['recorder:status']({
+      phase: p,
+      elapsedMs: elapsed,
+      ...(p === 'idle' ? {} : target.current)
+    })
+  }, [phase.name, paused, elapsed])
+
+  useEffect(() => window.leverage.on('recorder:command', (c) => commands.current[c]()), [])
 
   useEffect(() => {
     if (phase.name !== 'recording') return
@@ -64,8 +88,14 @@ export default function Studio(): React.JSX.Element {
     const s = new RecorderSession(browserDeps())
     s.onAutoStop = finished
     s.onTrackDisabled = addWarning
+    target.current = { displayId: choice.source.displayId, cameraId: choice.cameraId }
     try {
-      const { disabled } = await s.prepare({ ...choice, sourceId: choice.source.id, regionDip })
+      const { id, disabled } = await s.prepare({ ...choice, sourceId: choice.source.id, regionDip })
+      if (disabled.camera) target.current.cameraId = undefined
+      s.beforeFinalize = async () => {
+        const bubble = await window.leverage['bubble:placement']()
+        if (bubble) await window.leverage['rec:update'](id, { bubble })
+      }
       for (const [kind, reason] of Object.entries(disabled) as [TrackKind, string][]) addWarning(kind, reason)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -119,15 +149,33 @@ export default function Studio(): React.JSX.Element {
   }
 
   const abort = async (): Promise<void> => {
-    const s = session.current
-    if (!s) return
+    if (!session.current) return
     const { confirmAbort } = await window.leverage['settings:get']()
     if (confirmAbort && !window.confirm('Discard this recording?')) return
+    await abortNow()
+  }
+
+  const abortNow = async (): Promise<void> => {
+    const s = session.current
+    if (!s) return
     if (countdownTimer.current) window.clearInterval(countdownTimer.current)
     session.current = null
     await s.abort()
     void window.leverage['window:restore']()
     setPhase({ name: 'setup' })
+  }
+
+  commands.current = {
+    toggle: () => {
+      if (phase.name === 'setup' && latestChoice.current) void record(latestChoice.current)
+      else if (phase.name === 'done') setPhase({ name: 'setup' })
+      else if (phase.name === 'recording') void stop()
+    },
+    pause: () => {
+      if (phase.name === 'recording') togglePause()
+    },
+    // Already confirmed by the main process.
+    abort: () => void abortNow()
   }
 
   return (
@@ -150,6 +198,7 @@ export default function Studio(): React.JSX.Element {
           busy={phase.name === 'preparing'}
           onRecord={(c) => void record(c)}
           onRegion={(d) => void recordRegion(d)}
+          onChoiceChange={(c) => (latestChoice.current = c)}
         />
       )}
 

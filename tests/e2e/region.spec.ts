@@ -36,8 +36,11 @@ test('dragging a region on the overlay records with a matching crop', async () =
       el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 }))
     fire('mousedown', 100, 80)
     fire('mousemove', 250, 160)
-    await new Promise((r) => requestAnimationFrame(() => r(null)))
-    const text = document.querySelector('.size')?.textContent
+    let text: string | null | undefined
+    for (let i = 0; i < 30 && !text; i++) {
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
+      text = document.querySelector('.size')?.textContent
+    }
     fire('mouseup', 250, 160)
     return text
   })

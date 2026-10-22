@@ -33,7 +33,10 @@ function App(): React.JSX.Element {
         ))}
       </nav>
       <main className="content">
-        {active === 'Studio' && <Studio />}
+        {/* Studio stays mounted so a recording keeps running while other pages are open. */}
+        <div hidden={active !== 'Studio'}>
+          <Studio />
+        </div>
         {active === 'Snap' && <ComingSoon name="Snap" />}
         {active === 'Listen' && <ComingSoon name="Listen" />}
         {active === 'Library' && <ComingSoon name="Library" />}

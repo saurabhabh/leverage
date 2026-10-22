@@ -36,9 +36,11 @@ type Props = {
   busy: boolean
   onRecord: (choice: RecordChoice) => void
   onRegion?: (choice: Omit<RecordChoice, 'source'>) => void
+  /** Current selection, so a hotkey can start recording without clicking Record. */
+  onChoiceChange?: (choice: RecordChoice | null) => void
 }
 
-export default function RecordSetup({ busy, onRecord, onRegion }: Props): React.JSX.Element {
+export default function RecordSetup({ busy, onRecord, onRegion, onChoiceChange }: Props): React.JSX.Element {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
   const [sources, setSources] = useState<CaptureSource[]>([])
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
@@ -77,6 +79,12 @@ export default function RecordSetup({ busy, onRecord, onRegion }: Props): React.
     micId: mics.some((m) => m.deviceId === prefs.micId) ? prefs.micId : undefined,
     systemAudio: prefs.systemAudio
   }
+
+  const choiceKey = JSON.stringify([selected?.id, deviceChoice])
+  useEffect(() => {
+    onChoiceChange?.(selected ? { source: selected, ...deviceChoice } : null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [choiceKey])
 
   return (
     <div className="page record-setup">

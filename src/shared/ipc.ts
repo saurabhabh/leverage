@@ -1,6 +1,16 @@
 import type { CaptureSource, RecordingManifest, Rect, Settings, TrackKind } from './types'
 
 export type RegionPick = { displayId: string; rectDip: Rect }
+
+export type RecorderCommand = 'toggle' | 'pause' | 'abort'
+export type RecorderStatus = {
+  phase: 'idle' | 'countdown' | 'recording' | 'paused' | 'saving'
+  elapsedMs: number
+  /** Display being recorded; undefined for window capture (helpers then use the primary display). */
+  displayId?: string
+  cameraId?: string
+}
+export type BubblePlacement = { xDip: number; yDip: number; sizeDip: number }
 import type { CreateInitPayload } from './recording'
 
 /**
@@ -29,6 +39,13 @@ export interface InvokeApi {
 
   'region:pick': () => Promise<RegionPick | null>
   'region:submit': (result: RegionPick | null) => Promise<void>
+
+  'recorder:status': (status: RecorderStatus) => Promise<void>
+  /** From the toolbar; abort is confirmed by main before it reaches the recorder. */
+  'recorder:command': (command: RecorderCommand) => Promise<void>
+  'bubble:placement': () => Promise<BubblePlacement | null>
+  'bubble:resize': (size: 'S' | 'M' | 'L') => Promise<void>
+  'hotkeys:failed': () => Promise<string[]>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -50,18 +67,31 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'window:minimize',
   'window:restore',
   'region:pick',
-  'region:submit'
+  'region:submit',
+  'recorder:status',
+  'recorder:command',
+  'bubble:placement',
+  'bubble:resize',
+  'hotkeys:failed'
 ]
 
 /** Main → renderer events. */
 export interface EventMap {
   'settings:changed': Settings
   'library:changed': null
+  'recorder:status': RecorderStatus
+  /** To the main window's recorder; abort here is already confirmed. */
+  'recorder:command': RecorderCommand
 }
 
 export type EventChannel = keyof EventMap
 
-export const EVENT_CHANNELS: readonly EventChannel[] = ['settings:changed', 'library:changed']
+export const EVENT_CHANNELS: readonly EventChannel[] = [
+  'settings:changed',
+  'library:changed',
+  'recorder:status',
+  'recorder:command'
+]
 
 export type LeverageApi = InvokeApi & {
   on<C extends EventChannel>(channel: C, listener: (payload: EventMap[C]) => void): () => void

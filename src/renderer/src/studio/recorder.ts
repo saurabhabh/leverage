@@ -98,6 +98,8 @@ export class RecorderSession {
   onAutoStop: ((manifest: RecordingManifest) => void) | null = null
   /** Called when a track drops out mid-recording. */
   onTrackDisabled: ((kind: TrackKind, reason: string) => void) | null = null
+  /** Runs after the last chunk is written and before the recording is finalized (e.g. save bubble position). */
+  beforeFinalize: (() => Promise<void>) | null = null
 
   private id = ''
   private active: Active[] = []
@@ -244,6 +246,11 @@ export class RecorderSession {
     await Promise.all(this.active.map((e) => this.stopRecorder(e)))
     this.releaseTracks()
     await this.sending
+    try {
+      await this.beforeFinalize?.()
+    } catch {
+      // Optional metadata; never block saving the recording.
+    }
     return this.deps.api['rec:finalize'](this.id, durationMs)
   }
 

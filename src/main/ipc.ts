@@ -20,6 +20,8 @@ export function broadcast<C extends EventChannel>(channel: C, payload: EventMap[
 export const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
 
 let current: Settings | undefined
+const settingsListeners: ((s: Settings) => void)[] = []
+export const onSettingsChanged = (fn: (s: Settings) => void): void => void settingsListeners.push(fn)
 
 export function getSettings(): Settings {
   current ??= loadSettings(settingsFile(), app.getPath('home'))
@@ -32,6 +34,7 @@ export function registerCoreIpc(): void {
     saveSettings(settingsFile(), settings)
     current = loadSettings(settingsFile(), app.getPath('home'))
     broadcast('settings:changed', current)
+    settingsListeners.forEach((fn) => fn(current!))
     return current
   })
   handle('window:minimize', (event) => {

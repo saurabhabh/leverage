@@ -1,0 +1,75 @@
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  user-select: none;
+}
+
+.toolbar {
+  -webkit-app-region: drag;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 14px;
+  background: rgba(24, 24, 27, 0.94);
+  color: #fff;
+  font-size: 14px;
+}
+
+.toolbar button {
+  -webkit-app-region: no-drag;
+  font: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.toolbar button.stop {
+  background: #e5484d;
+  font-weight: 600;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e5484d;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot.paused {
+  background: #f5a524;
+  animation: none;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  min-width: 64px;
+  flex: 1;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
