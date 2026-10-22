@@ -1,22 +1,15 @@
-import { contextBridge } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+import { contextBridge, ipcRenderer } from 'electron'
+import { INVOKE_CHANNELS, EVENT_CHANNELS, type LeverageApi } from '../shared/ipc'
 
-// Custom APIs for renderer
-const api = {}
-
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
-    console.error(error)
-  }
-} else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
-  // @ts-ignore (define in dts)
-  window.api = api
+const api: Record<string, unknown> = {}
+for (const channel of INVOKE_CHANNELS) {
+  api[channel] = (...args: unknown[]) => ipcRenderer.invoke(channel, ...args)
 }
+api.on = (channel: string, listener: (payload: unknown) => void) => {
+  if (!(EVENT_CHANNELS as readonly string[]).includes(channel)) throw new Error(`Unknown event ${channel}`)
+  const wrapped = (_e: Electron.IpcRendererEvent, payload: unknown): void => listener(payload)
+  ipcRenderer.on(channel, wrapped)
+  return () => ipcRenderer.removeListener(channel, wrapped)
+}
+
+contextBridge.exposeInMainWorld('leverage', api as unknown as LeverageApi)

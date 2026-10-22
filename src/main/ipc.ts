@@ -1,0 +1,46 @@
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { join } from 'path'
+import type { InvokeApi, InvokeChannel, EventChannel, EventMap } from '../shared/ipc'
+import { loadSettings, saveSettings } from './settings'
+import type { Settings } from '../shared/types'
+
+type Handler<C extends InvokeChannel> = (
+  event: Electron.IpcMainInvokeEvent,
+  ...args: Parameters<InvokeApi[C]>
+) => ReturnType<InvokeApi[C]> | Awaited<ReturnType<InvokeApi[C]>>
+
+export function handle<C extends InvokeChannel>(channel: C, handler: Handler<C>): void {
+  ipcMain.handle(channel, (event, ...args) => handler(event, ...(args as Parameters<InvokeApi[C]>)))
+}
+
+export function broadcast<C extends EventChannel>(channel: C, payload: EventMap[C]): void {
+  for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, payload)
+}
+
+export const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
+
+let current: Settings | undefined
+
+export function getSettings(): Settings {
+  current ??= loadSettings(settingsFile(), app.getPath('home'))
+  return current
+}
+
+export function registerCoreIpc(): void {
+  handle('settings:get', () => getSettings())
+  handle('settings:set', (_e, settings) => {
+    saveSettings(settingsFile(), settings)
+    current = loadSettings(settingsFile(), app.getPath('home'))
+    broadcast('settings:changed', current)
+    return current
+  })
+  handle('dialog:pickFolder', async (event, defaultPath) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? undefined
+    const options: Electron.OpenDialogOptions = {
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath
+    }
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return result.canceled ? null : (result.filePaths[0] ?? null)
+  })
+}

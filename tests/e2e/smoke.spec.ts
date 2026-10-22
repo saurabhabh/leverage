@@ -1,7 +1,8 @@
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { launchIsolated } from './launch'
 
 test('opens Leverage with module navigation', async () => {
-  const app = await electron.launch({ args: ['.'] })
+  const { app } = await launchIsolated()
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
 

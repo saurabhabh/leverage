@@ -97,3 +97,89 @@ button {
 .placeholder p {
   color: var(--muted);
 }
+
+h1 {
+  font-size: 22px;
+  margin: 0 0 18px;
+}
+
+h2 {
+  font-size: 15px;
+  margin: 0 0 12px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.page {
+  max-width: 880px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+}
+
+.row label {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+.path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.btn:hover {
+  border-color: var(--muted);
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+input[type='number'] {
+  width: 80px;
+  padding: 4px 6px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+kbd {
+  font-family: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
