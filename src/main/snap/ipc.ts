@@ -158,7 +158,8 @@ async function capture(mode: SnapMode, delaySec = 0): Promise<void> {
   if (busy) return
   busy = true
   const main = mainWindow()
-  const hideMain = !!main && main.isVisible() && !main.isMinimized()
+  // Only when started from Leverage itself: from a hotkey, the user wants the screen as it is.
+  const hideMain = !!main && main.isVisible() && main.isFocused()
   try {
     if (hideMain) main!.hide()
     // Give the window time to disappear before the screen is grabbed.

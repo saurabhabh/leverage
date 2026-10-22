@@ -123,9 +123,13 @@ export default function SnapOverlay(): React.JSX.Element {
         else if (d.startRect)
           setRect(resizeBy(d.startRect, d.handle, p.x - d.start.x, p.y - d.start.y, bounds))
       }}
-      onMouseUp={() => {
+      onMouseUp={(e) => {
+        const d = drag.current
         drag.current = null
-        if (rect && (rect.width < MIN_SIZE || rect.height < MIN_SIZE)) setRect(null)
+        // Work from the drag itself: state may be a render behind a fast drag.
+        if (d?.handle !== 'new') return
+        const r = normalizeDrag(d.start, point(e))
+        setRect(r.width < MIN_SIZE || r.height < MIN_SIZE ? null : r)
       }}
       onDoubleClick={(e) => {
         if (rect && handleAt(rect, point(e), GRAB) === 'move') submit('edit')

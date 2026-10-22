@@ -14,7 +14,7 @@ One app, three modules, built one at a time:
 | Module  | Source app (reverse engineered) | Replaces            | Order |
 |---------|---------------------------------|---------------------|-------|
 | Studio  | ShareX (GPL-3, .NET)            | Loom                | 1st   |
-| Snap    | screenshot annotator (likely Flameshot — confirm before starting) | Snagit-style tools | 2nd |
+| Snap    | Flameshot (GPL-3, C++/Qt) — see `2026-10-22-snap-design.md` | Snagit-style tools | 2nd |
 | Listen  | OpenWhispr (Electron)           | Wispr Flow / meeting notetakers | 3rd |
 
 Per-module process (mirrors the video): reverse engineer the source app with `rea` → write a

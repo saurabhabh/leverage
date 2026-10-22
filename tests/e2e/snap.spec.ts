@@ -29,14 +29,15 @@ async function dragOn(
       const el = document.querySelector('.snap-overlay')!
       const fire = (type: string, x: number, y: number): boolean =>
         el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 }))
+      // Down, move and up with no await in between, so the real pointer cannot interleave a move.
       fire('mousedown', a[0], a[1])
       fire('mousemove', b[0], b[1])
+      fire('mouseup', b[0], b[1])
       let text: string | null | undefined
       for (let i = 0; i < 30 && !text; i++) {
         await new Promise((r) => requestAnimationFrame(() => r(null)))
         text = document.querySelector('.size')?.textContent
       }
-      fire('mouseup', b[0], b[1])
       return text
     },
     [from, to] as const
