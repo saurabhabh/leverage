@@ -1,7 +1,9 @@
 import { readFile, rename, rm, writeFile, mkdtemp } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { toTrackTime, TranscriptSchema, type Transcript } from '../../shared/transcript'
+import { parseSilences, toTrackTime, TranscriptSchema, type Range, type Transcript } from '../../shared/transcript'
+import { ffmpegStderr } from '../media/ffmpeg'
+import { probeDurationSeconds } from '../media/probe'
 import { keyStore } from '../ai/keys'
 import { transcribeGroq } from '../ai/groq'
 import { broadcast, getSettings, handle } from '../ipc'
@@ -79,7 +81,19 @@ async function run(id: string): Promise<Transcript> {
   }
 }
 
+/** Long pauses in the speech track (≥ 1 s below -35 dB), padded 250 ms, on the source timeline. */
+async function silences(id: string): Promise<Range[]> {
+  const { dir, manifest } = await recording(id)
+  const speech = speechTrack(manifest)
+  if (!speech) throw new Error('This recording has no microphone or system audio to check for pauses.')
+  const file = join(dir, manifest.tracks[speech.track]!.file)
+  const stderr = await ffmpegStderr(['-hide_banner', '-nostats', '-i', file, '-vn', '-af', 'silencedetect=n=-35dB:d=1.0', '-f', 'null', '-'])
+  const endMs = (await probeDurationSeconds(file).catch(() => 0)) * 1000 || undefined
+  return parseSilences(stderr, 250, endMs).map((r) => ({ startMs: r.startMs + speech.offsetMs, endMs: r.endMs + speech.offsetMs }))
+}
+
 export function registerTranscribeIpc(): void {
+  handle('autocut:silences', (_e, id) => silences(id))
   handle('transcribe:run', (_e, id) => run(id))
   handle('transcribe:get', async (_e, id) => readTranscript((await recording(id)).dir))
   handle('transcribe:cancel', (_e, id) => running.get(id)?.abort())

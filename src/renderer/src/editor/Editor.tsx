@@ -36,6 +36,8 @@ import Timeline, { type Mark, type Selection } from './Timeline'
 import { clock } from './time'
 import { exportRecording } from './exportPrep'
 import TranscriptPanel, { type WordSelection } from './TranscriptPanel'
+import AutoCuts from './AutoCuts'
+import { fillerRanges, type Range } from '../../../shared/transcript'
 import type { Transcript } from '../../../shared/transcript'
 import './editor.css'
 
@@ -230,6 +232,21 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
     const last = words[sel.to]
     if (first && last) commit(removeSourceRange(present, first.startMs, last.endMs))
     setWordSel(null)
+  }
+
+  /** Remove several source ranges as ONE undo step; reports how many changed the edit and the time saved. */
+  const removeRanges = (ranges: Range[]): { count: number; seconds: number } => {
+    const start = history.current?.present
+    if (!start) return { count: 0, seconds: 0 }
+    let next = start
+    let count = 0
+    for (const r of ranges) {
+      const after = removeSourceRange(next, r.startMs, r.endMs)
+      if (after !== next) count++
+      next = after
+    }
+    commit(next)
+    return { count, seconds: (outputDurationMs(start) - outputDurationMs(next)) / 1000 }
   }
 
   const selectAndShow = (sel: Selection): void => {
@@ -451,7 +468,14 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
                     if (at) seek(at.outStartMs)
                   }}
                   onCutSelected={() => wordSel && cutWords(edit, wordSel)}
-                />
+                >
+                  <AutoCuts
+                    noAudio={opened.manifest.tracks.mic || opened.manifest.tracks.system ? null : 'No audio to check'}
+                    hasTranscript={!!transcript?.words.length}
+                    onRemovePauses={async () => removeRanges(await window.leverage['autocut:silences'](recordingId))}
+                    onRemoveFillers={() => removeRanges(fillerRanges(transcript?.words ?? []))}
+                  />
+                </TranscriptPanel>
               )}
               {sideTab === 'properties' && !selectedOverlay && urls.camera && edit.camera && (
                 <CameraPanel camera={edit.camera} frame={frame} onChange={(patch) => commit(setCamera(edit, patch))} />

@@ -31,7 +31,9 @@ const MEDIA: Record<string, [string[], string[]]> = {
   'mic.webm': [['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'], ['-c:a', 'libopus']],
   'system.webm': [['-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000'], ['-c:a', 'libopus']],
   // Real speech (Windows TTS) for transcription tests; ~11 s, so not cut to 3 s.
-  'speech.webm': [['-i', join(__dirname, '..', 'fixtures', 'speech.wav')], ['-c:a', 'libopus']]
+  'speech.webm': [['-i', join(__dirname, '..', 'fixtures', 'speech.wav')], ['-c:a', 'libopus']],
+  // Tone 0–1 s, silence 1–2.5 s, tone 2.5–3 s.
+  'pause.webm': [['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'], ['-af', "volume='if(between(t,1,2.5),0,1)':eval=frame", '-c:a', 'libopus']]
 }
 
 function copyMedia(name: string, dir: string, as = name): void {
@@ -52,6 +54,8 @@ export type SeedOptions = {
   audio?: boolean
   /** Mic track holds real speech instead of a tone. */
   micSpeech?: boolean
+  /** Mic track has a 1.5 s pause (1–2.5 s). */
+  micPause?: boolean
   /** Pre-made transcript.json (source-timeline words). */
   transcript?: { text: string; startMs: number; endMs: number }[]
 }
@@ -64,7 +68,7 @@ export function seedCrashedRecording(library: string, opts: SeedOptions = {}): s
   copyMedia('screen.webm', dir)
   if (withCamera) copyMedia('camera.webm', dir)
   if (withAudio) {
-    copyMedia(opts.micSpeech ? 'speech.webm' : 'mic.webm', dir, 'mic.webm')
+    copyMedia(opts.micSpeech ? 'speech.webm' : opts.micPause ? 'pause.webm' : 'mic.webm', dir, 'mic.webm')
     copyMedia('system.webm', dir)
   }
   if (opts.transcript) {

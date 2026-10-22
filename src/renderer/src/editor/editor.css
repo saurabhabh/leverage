@@ -539,3 +539,12 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+.autocuts {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}

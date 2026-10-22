@@ -82,6 +82,8 @@ export interface InvokeApi {
   'transcribe:run': (id: string) => Promise<Transcript>
   'transcribe:get': (id: string) => Promise<Transcript | null>
   'transcribe:cancel': (id: string) => Promise<void>
+  /** Long pauses in the speech track, on the source timeline. */
+  'autocut:silences': (id: string) => Promise<{ startMs: number; endMs: number }[]>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -126,7 +128,8 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'whisper:cancel',
   'transcribe:run',
   'transcribe:get',
-  'transcribe:cancel'
+  'transcribe:cancel',
+  'autocut:silences'
 ]
 
 /** Main → renderer events. */

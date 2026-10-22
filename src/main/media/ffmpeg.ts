@@ -34,3 +34,15 @@ export function execFfmpeg(args: string[], onStdoutLine?: (line: string) => void
 /** Stream-copy a WebM so it gets a duration and seek cues. */
 export const remuxCopy = (inFile: string, outFile: string): Promise<void> =>
   execFfmpeg(['-hide_banner', '-loglevel', 'error', '-i', inFile, '-c', 'copy', '-n', outFile])
+
+/** Run ffmpeg and return everything it wrote to stderr (analysis filters like silencedetect log there). */
+export function ffmpegStderr(args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(ffmpegPath(), args, { windowsHide: true })
+    let err = ''
+    child.stderr.on('data', (b: Buffer) => (err += b.toString()))
+    child.stdout.resume()
+    child.on('error', reject)
+    child.on('close', (code) => (code === 0 ? resolve(err) : reject(new Error(`ffmpeg exited with ${code}\n${err.slice(-2000)}`))))
+  })
+}
