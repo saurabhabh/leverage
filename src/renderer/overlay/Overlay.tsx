@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { normalizeDrag } from '../../shared/region'
 import type { Rect } from '../../shared/types'
 
@@ -11,7 +11,8 @@ type Point = { x: number; y: number }
 
 /** Full-display, dimmed layer: drag a rectangle; Esc or right-click cancels. Coordinates are DIP. */
 export default function Overlay(): React.JSX.Element {
-  const [start, setStart] = useState<Point | null>(null)
+  // A ref, not state: mousemove/mouseup can arrive before React re-renders after mousedown.
+  const start = useRef<Point | null>(null)
   const [rect, setRect] = useState<Rect | null>(null)
 
   useEffect(() => {
@@ -33,16 +34,16 @@ export default function Overlay(): React.JSX.Element {
       }}
       onMouseDown={(e) => {
         if (e.button !== 0) return
-        setStart(point(e))
+        start.current = point(e)
         setRect(null)
       }}
       onMouseMove={(e) => {
-        if (start) setRect(normalizeDrag(start, point(e)))
+        if (start.current) setRect(normalizeDrag(start.current, point(e)))
       }}
       onMouseUp={(e) => {
-        if (!start || e.button !== 0) return
-        const r = normalizeDrag(start, point(e))
-        setStart(null)
+        if (!start.current || e.button !== 0) return
+        const r = normalizeDrag(start.current, point(e))
+        start.current = null
         if (r.width < MIN_SIZE || r.height < MIN_SIZE) {
           setRect(null)
           return

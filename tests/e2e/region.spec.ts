@@ -29,11 +29,19 @@ test('dragging a region on the overlay records with a matching crop', async () =
     const d = screen.getPrimaryDisplay()
     return { factor: d.scaleFactor, x: d.bounds.x, y: d.bounds.y }
   })
-  await overlay.mouse.move(100, 80)
-  await overlay.mouse.down()
-  await overlay.mouse.move(250, 160, { steps: 5 })
-  await expect(overlay.getByText('150 × 80')).toBeVisible()
-  await overlay.mouse.up()
+  // One synchronous burst inside the page: the user's real mouse cannot interleave with it.
+  const readout = await overlay.evaluate(async () => {
+    const el = document.querySelector('.overlay')!
+    const fire = (type: string, x: number, y: number): boolean =>
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 }))
+    fire('mousedown', 100, 80)
+    fire('mousemove', 250, 160)
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    const text = document.querySelector('.size')?.textContent
+    fire('mouseup', 250, 160)
+    return text
+  })
+  expect(readout).toBe('150 × 80')
 
   await expect(page.getByRole('heading', { name: 'Recording', exact: true })).toBeVisible({ timeout: 15_000 })
   await page.waitForTimeout(1500)
