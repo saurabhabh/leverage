@@ -1,12 +1,12 @@
-import { execFile } from 'child_process'
 import { net, protocol } from 'electron'
-import ffprobeStatic from 'ffprobe-static'
 import { join } from 'path'
 import { pathToFileURL } from 'url'
 import type { RecordingManifest, TrackKind } from '../../shared/types'
 import { TRACK_KINDS } from '../../shared/types'
+import { relativeOffsets } from '../../shared/edit'
 import { handle } from '../ipc'
 import { libraryStore } from '../recording/ipc'
+import { probeDurationSeconds } from '../media/probe'
 import { loadEdit, saveEdit, writeOverlayPng } from './store'
 
 export const MEDIA_SCHEME = 'leverage-media'
@@ -18,28 +18,16 @@ export function registerMediaScheme(): void {
   ])
 }
 
-const ffprobePath = (): string => ffprobeStatic.path.replace('app.asar', 'app.asar.unpacked')
-
-function probeSeconds(file: string): Promise<number> {
-  return new Promise((resolve, reject) =>
-    execFile(
-      ffprobePath(),
-      ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file],
-      { windowsHide: true },
-      (err, stdout) => {
-        const n = Number(String(stdout).trim())
-        if (err || !Number.isFinite(n)) reject(err ?? new Error('No duration'))
-        else resolve(n)
-      }
-    )
-  )
-}
-
-/** Duration of a recording without a stored one (recovered after a crash): its longest track. */
+/** Source length of a recording without a stored duration (recovered after a crash). */
 async function probeMs(dir: string, m: RecordingManifest): Promise<number> {
-  const files = Object.values(m.tracks).map((t) => join(dir, t.file))
-  const secs = await Promise.all(files.map((f) => probeSeconds(f).catch(() => 0)))
-  return Math.max(...secs, 0.1) * 1000
+  const offsets = relativeOffsets(m)
+  const ends = await Promise.all(
+    (Object.entries(m.tracks) as [TrackKind, { file: string }][]).map(async ([k, t]) => {
+      const secs = await probeDurationSeconds(join(dir, t.file)).catch(() => 0)
+      return (offsets[k] ?? 0) + secs * 1000
+    })
+  )
+  return Math.max(...ends, 100)
 }
 
 /** id → recording folder, so media requests (many per second while seeking) don't rescan the library. */

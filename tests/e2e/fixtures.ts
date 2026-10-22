@@ -23,11 +23,12 @@ export const probe = (file: string): { streams: string[]; width: number; duratio
 }
 
 /** A recording interrupted by a crash: raw live-mode WebM (no duration/cues), status "recording". */
-export function seedCrashedRecording(library: string): string {
+export function seedCrashedRecording(library: string, opts: { camera?: boolean } = {}): string {
+  const withCamera = opts.camera ?? true
   const dir = join(library, '2026-10-22 10-00-00')
   mkdirSync(dir, { recursive: true })
   live(join(dir, 'screen.webm'), ['-f', 'lavfi', '-i', 'testsrc=size=1280x720:rate=30'], ['-c:v', 'libvpx', '-b:v', '1M'])
-  live(join(dir, 'camera.webm'), ['-f', 'lavfi', '-i', 'testsrc2=size=640x480:rate=30'], ['-c:v', 'libvpx', '-b:v', '500k'])
+  if (withCamera) live(join(dir, 'camera.webm'), ['-f', 'lavfi', '-i', 'testsrc2=size=640x480:rate=30'], ['-c:v', 'libvpx', '-b:v', '500k'])
   live(join(dir, 'mic.webm'), ['-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000'], ['-c:a', 'libopus'])
   live(join(dir, 'system.webm'), ['-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000'], ['-c:a', 'libopus'])
   const t = (file: string, offsetMs = 0): { file: string; mime: string; offsetMs: number } => ({ file, mime: 'x', offsetMs })
@@ -45,7 +46,7 @@ export function seedCrashedRecording(library: string): string {
       // Odd-sized region and a bubble hanging off the right edge.
       crop: { x: 100, y: 50, width: 801, height: 451 },
       bubble: { xDip: 850, yDip: 300, sizeDip: 200 },
-      tracks: { screen: t('screen.webm'), camera: t('camera.webm', 100), mic: t('mic.webm', 50), system: t('system.webm') },
+      tracks: { screen: t('screen.webm'), ...(withCamera ? { camera: t('camera.webm', 100) } : {}), mic: t('mic.webm', 50), system: t('system.webm') },
       disabledTracks: {}
     })
   )
