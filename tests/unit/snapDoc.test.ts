@@ -10,11 +10,41 @@ const doc: SnapDoc = {
   height: 600,
   shapes: [
     { id: 'a', kind: 'arrow', color: '#ff0000', size: 3, a: { x: 1, y: 2 }, b: { x: 30, y: 40 } },
-    { id: 'b', kind: 'rect', color: '#ff0000', size: 3, rect: { x: 0, y: 0, width: 10, height: 10 }, filled: true },
-    { id: 'c', kind: 'pen', color: '#00ff00', size: 2, points: [{ x: 0, y: 0 }, { x: 5, y: 5 }] },
-    { id: 'd', kind: 'text', color: '#000000', size: 20, at: { x: 5, y: 5 }, text: 'Hi', bold: true },
+    {
+      id: 'b',
+      kind: 'rect',
+      color: '#ff0000',
+      size: 3,
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+      filled: true
+    },
+    {
+      id: 'c',
+      kind: 'pen',
+      color: '#00ff00',
+      size: 2,
+      points: [
+        { x: 0, y: 0 },
+        { x: 5, y: 5 }
+      ]
+    },
+    {
+      id: 'd',
+      kind: 'text',
+      color: '#000000',
+      size: 20,
+      at: { x: 5, y: 5 },
+      text: 'Hi',
+      bold: true
+    },
     { id: 'e', kind: 'counter', color: '#ff0000', size: 3, at: { x: 50, y: 50 } },
-    { id: 'f', kind: 'pixelate', color: '#000000', size: 10, rect: { x: 0, y: 0, width: 50, height: 20 } }
+    {
+      id: 'f',
+      kind: 'pixelate',
+      color: '#000000',
+      size: 10,
+      rect: { x: 0, y: 0, width: 50, height: 20 }
+    }
   ]
 }
 
@@ -28,6 +58,11 @@ test('crop is optional and kept when present', () => {
 })
 
 test('unknown shape kinds and wrong versions are rejected', () => {
-  expect(SnapDocSchema.safeParse({ ...doc, shapes: [{ id: 'x', kind: 'laser', color: '#f00', size: 1 }] }).success).toBe(false)
+  expect(
+    SnapDocSchema.safeParse({
+      ...doc,
+      shapes: [{ id: 'x', kind: 'laser', color: '#f00', size: 1 }]
+    }).success
+  ).toBe(false)
   expect(SnapDocSchema.safeParse({ ...doc, version: 2 }).success).toBe(false)
 })

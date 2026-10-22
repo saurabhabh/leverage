@@ -10,7 +10,13 @@ export const ShapeSchema = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.enum(['pen', 'marker']), points: z.array(PointSchema).min(1) }),
   z.object({ ...base, kind: z.enum(['line', 'arrow']), a: PointSchema, b: PointSchema }),
   z.object({ ...base, kind: z.enum(['rect', 'ellipse']), rect: RectSchema, filled: z.boolean() }),
-  z.object({ ...base, kind: z.literal('text'), at: PointSchema, text: z.string(), bold: z.boolean() }),
+  z.object({
+    ...base,
+    kind: z.literal('text'),
+    at: PointSchema,
+    text: z.string(),
+    bold: z.boolean()
+  }),
   z.object({ ...base, kind: z.literal('counter'), at: PointSchema }),
   /** size = block size in image pixels. */
   z.object({ ...base, kind: z.literal('pixelate'), rect: RectSchema }),
