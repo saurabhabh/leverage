@@ -1,0 +1,199 @@
+.snap-page {
+  max-width: 1100px;
+}
+
+.snap-delay-label {
+  width: auto !important;
+  margin-left: 8px;
+}
+
+select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font: inherit;
+}
+
+.snap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.snap-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.snap-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.snap-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.snap-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.snap-tile-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.snap-tile-actions .btn {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+/* Editor */
+
+.snap-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: calc(100vh - 56px);
+  min-height: 0;
+}
+
+.snap-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.snap-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.snap-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+}
+
+.tool {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 9px;
+}
+
+.tool:hover {
+  background: var(--bg);
+}
+
+.tool.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.tool-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+
+.swatch.active {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+
+.snap-tools input[type='color'] {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.tool-size,
+.tool-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+}
+
+.tool-size input {
+  width: 110px;
+}
+
+.snap-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: repeating-conic-gradient(var(--border) 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+  border-radius: 10px;
+}
+
+.snap-canvas {
+  position: relative;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.snap-canvas canvas {
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.snap-canvas canvas[data-tool='select'] {
+  cursor: default;
+}
+
+.snap-text {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  min-width: 40px;
+  border: 1px dashed #0a84ff;
+  background: transparent;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  field-sizing: content;
+}

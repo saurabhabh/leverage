@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { RecordingManifest, TrackKind } from '../../../shared/types'
 import { exportRecording } from '../editor/exportPrep'
+import SnapGallery from '../snap/SnapGallery'
 
 const TRACK_LABEL: Record<TrackKind, string> = { screen: 'Screen', camera: 'Camera', mic: 'Mic', system: 'System audio' }
 
@@ -12,7 +13,26 @@ const duration = (ms: number): string => {
 
 type Job = { kind: 'mp4' | 'gif'; pct: number } | { done: string } | { error: string }
 
-export default function Library({ onEdit }: { onEdit: (id: string) => void }): React.JSX.Element {
+type Props = { onEdit: (id: string) => void; onEditSnap: (id: string) => void }
+
+export default function Library({ onEdit, onEditSnap }: Props): React.JSX.Element {
+  const [tab, setTab] = useState<'Recordings' | 'Screenshots'>('Recordings')
+  return (
+    <div className="page library">
+      <h1>Library</h1>
+      <div className="tabs" role="tablist">
+        {(['Recordings', 'Screenshots'] as const).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'tab active' : 'tab'} onClick={() => setTab(t)}>
+            {t}
+          </button>
+        ))}
+      </div>
+      {tab === 'Recordings' ? <Recordings onEdit={onEdit} /> : <SnapGallery onOpen={onEditSnap} />}
+    </div>
+  )
+}
+
+function Recordings({ onEdit }: { onEdit: (id: string) => void }): React.JSX.Element {
   const [items, setItems] = useState<RecordingManifest[] | null>(null)
   const [jobs, setJobs] = useState<Record<string, Job>>({})
 
@@ -68,8 +88,7 @@ export default function Library({ onEdit }: { onEdit: (id: string) => void }): R
   if (!items) return <p className="muted">Loading…</p>
 
   return (
-    <div className="page library">
-      <h1>Library</h1>
+    <>
       {items.length === 0 && <p className="muted">No recordings yet. Make one in Studio.</p>}
       {items.map((m) => {
         const job = jobs[m.id]
@@ -119,6 +138,6 @@ export default function Library({ onEdit }: { onEdit: (id: string) => void }): R
           </section>
         )
       })}
-    </div>
+    </>
   )
 }

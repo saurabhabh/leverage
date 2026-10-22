@@ -13,6 +13,9 @@ test('opens Leverage with module navigation', async () => {
   }
 
   await page.getByRole('button', { name: 'Snap' }).click()
+  await expect(page.getByRole('heading', { name: 'Snap' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Region' })).toBeVisible()
+  await page.getByRole('button', { name: 'Listen' }).click()
   await expect(page.getByText('Coming soon')).toBeVisible()
 
   await app.close()
@@ -30,7 +33,10 @@ test('the main window cannot be navigated away from Leverage (e.g. by a dropped 
   // Ask Electron directly: Playwright keeps waiting on a navigation that was cancelled.
   const state = await app.evaluate(async ({ BrowserWindow }) => {
     const wc = BrowserWindow.getAllWindows()[0].webContents
-    return { url: wc.getURL(), buttons: await wc.executeJavaScript('document.querySelectorAll(".nav-item").length') }
+    return {
+      url: wc.getURL(),
+      buttons: await wc.executeJavaScript('document.querySelectorAll(".nav-item").length')
+    }
   })
   expect(state).toEqual({ url: before, buttons: 5 })
   await app.close()

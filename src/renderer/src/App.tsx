@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Settings from './settings/Settings'
 import Studio from './studio/Studio'
 import Library from './library/Library'
 import Editor from './editor/Editor'
+import Snap from './snap/Snap'
 
 type Module = 'Studio' | 'Snap' | 'Listen' | 'Library' | 'Settings'
 
@@ -20,6 +21,17 @@ function ComingSoon({ name }: { name: string }): React.JSX.Element {
 function App(): React.JSX.Element {
   const [active, setActive] = useState<Module>('Studio')
   const [editing, setEditing] = useState<string | null>(null)
+  const [snapEditing, setSnapEditing] = useState<string | null>(null)
+
+  // A capture accepted with Enter opens straight in the Snap editor.
+  useEffect(
+    () =>
+      window.leverage.on('snap:open', ({ id }) => {
+        setSnapEditing(id)
+        setActive('Snap')
+      }),
+    []
+  )
 
   return (
     <div className="shell">
@@ -31,6 +43,7 @@ function App(): React.JSX.Element {
             className={m === active ? 'nav-item active' : 'nav-item'}
             onClick={() => {
               setEditing(null)
+              setSnapEditing(null)
               setActive(m)
             }}
           >
@@ -43,10 +56,20 @@ function App(): React.JSX.Element {
         <div hidden={active !== 'Studio'}>
           <Studio />
         </div>
-        {active === 'Snap' && <ComingSoon name="Snap" />}
+        {active === 'Snap' && <Snap editing={snapEditing} onEdit={setSnapEditing} />}
         {active === 'Listen' && <ComingSoon name="Listen" />}
-        {active === 'Library' && !editing && <Library onEdit={setEditing} />}
-        {active === 'Library' && editing && <Editor recordingId={editing} onBack={() => setEditing(null)} />}
+        {active === 'Library' && !editing && (
+          <Library
+            onEdit={setEditing}
+            onEditSnap={(id) => {
+              setSnapEditing(id)
+              setActive('Snap')
+            }}
+          />
+        )}
+        {active === 'Library' && editing && (
+          <Editor recordingId={editing} onBack={() => setEditing(null)} />
+        )}
         {active === 'Settings' && <Settings />}
       </main>
     </div>
