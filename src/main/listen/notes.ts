@@ -7,6 +7,8 @@ import { recordingDirName, uniqueDir } from '../recording/naming'
 const assertId = (id: string): void => {
   if (!id || id === '.' || id === '..' || /[\\/:]/.test(id)) throw new Error('Invalid note id')
 }
+type NotePatch = Partial<Omit<NoteDoc, 'id' | 'version' | 'createdAt'>>
+
 const safeTitle = (t: string): string =>
   t
     .replace(/[<>:"/\\|?*]+/g, '-')
@@ -102,15 +104,12 @@ export class NotesStore {
     return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   }
 
-  /** Main-process changes (status, transcript, summary, audio). */
-  update(
-    id: string,
-    patch: Partial<Omit<NoteDoc, 'id' | 'version' | 'createdAt'>>
-  ): Promise<NoteDoc> {
+  /** Main-process changes. A function patch is computed from the current doc inside the write queue. */
+  update(id: string, patch: NotePatch | ((doc: NoteDoc) => NotePatch)): Promise<NoteDoc> {
     return this.serial(async () => {
       const doc = await this.get(id)
       if (!doc) throw new Error('Note not found.')
-      return this.write({ ...doc, ...patch })
+      return this.write({ ...doc, ...(typeof patch === 'function' ? patch(doc) : patch) })
     })
   }
 

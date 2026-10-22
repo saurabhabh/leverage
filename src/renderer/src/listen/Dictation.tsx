@@ -75,6 +75,8 @@ export default function Dictation({
         <div className="row">
           <button
             className="btn primary"
+            // Keep focus where it was (e.g. the try-it box), so the text is pasted there.
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => void window.leverage['dictate:toggle']()}
             disabled={status.phase === 'transcribing'}
           >

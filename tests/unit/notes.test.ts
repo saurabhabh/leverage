@@ -80,6 +80,15 @@ describe('NotesStore', () => {
     expect(await store.get(n.id)).toMatchObject({ transcript: 'x', notes: 'y', summary: 'z' })
   })
 
+  test('function patches read the latest doc, so simultaneous track writes both land', async () => {
+    const n = await store.create({ title: 'T', source: { kind: 'meeting' } }, at)
+    await Promise.all([
+      store.update(n.id, (d) => ({ tracks: { ...d.tracks, mic: 'mic.webm' } })),
+      store.update(n.id, (d) => ({ tracks: { ...d.tracks, system: 'system.webm' } }))
+    ])
+    expect((await store.get(n.id))?.tracks).toEqual({ mic: 'mic.webm', system: 'system.webm' })
+  })
+
   test('bad ids are rejected; remove trashes the folder', async () => {
     await expect(store.get('../x')).rejects.toThrow('Invalid note id')
     const n = await store.create({ title: 'T', source: { kind: 'meeting' } }, at)

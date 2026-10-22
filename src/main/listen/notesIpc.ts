@@ -149,10 +149,8 @@ export function registerNotesIpc(): void {
     const key = `${id}/${track}`
     const next = (appending.get(key) ?? Promise.resolve()).then(async () => {
       const file = `${track}.webm`
-      const doc = await s.get(id)
-      if (!doc) throw new Error('Note not found.')
-      if (doc.tracks[track] !== file)
-        await s.update(id, { tracks: { ...doc.tracks, [track]: file } })
+      // Inside the store's queue: the mic's and the system's first chunks arrive together.
+      await s.update(id, (doc) => ({ tracks: { ...doc.tracks, [track]: file } }))
       await appendFile(join(s.dir(id), file), Buffer.from(data))
     })
     appending.set(
@@ -162,9 +160,9 @@ export function registerNotesIpc(): void {
     return next
   })
   handle('notes:meetingWarn', async (_e, id, warning) => {
-    const doc = await store().get(id)
-    if (doc && !doc.warnings.includes(warning))
-      await store().update(id, { warnings: [...doc.warnings, warning] })
+    await store().update(id, (doc) => ({
+      warnings: doc.warnings.includes(warning) ? doc.warnings : [...doc.warnings, warning]
+    }))
     changed(id)
   })
   handle('notes:meetingStop', async (_e, id, durationMs) => {

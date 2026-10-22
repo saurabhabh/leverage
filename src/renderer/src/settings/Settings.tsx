@@ -34,6 +34,11 @@ export default function Settings(): React.JSX.Element {
     if (folder) update({ libraryDir: folder })
   }
 
+  const pickNotesFolder = async (): Promise<void> => {
+    const folder = await window.leverage['dialog:pickFolder'](settings.listen.notesDir)
+    if (folder) update({ listen: { ...settings.listen, notesDir: folder } })
+  }
+
   const pickSnapFolder = async (): Promise<void> => {
     const folder = await window.leverage['dialog:pickFolder'](settings.snap.dir)
     if (folder) update({ snap: { ...settings.snap, dir: folder } })
@@ -80,13 +85,22 @@ export default function Settings(): React.JSX.Element {
       </section>
 
       <section className="card">
-        <h2>Screenshots</h2>
+        <h2>Screenshots and notes</h2>
         <div className="row">
           <label>Screenshots folder</label>
           <code className="path" data-testid="snap-dir">
             {settings.snap.dir}
           </code>
           <button className="btn" onClick={pickSnapFolder}>
+            Change…
+          </button>
+        </div>
+        <div className="row">
+          <label>Listen notes folder</label>
+          <code className="path" data-testid="notes-dir">
+            {settings.listen.notesDir}
+          </code>
+          <button className="btn" onClick={pickNotesFolder}>
             Change…
           </button>
         </div>
@@ -97,8 +111,8 @@ export default function Settings(): React.JSX.Element {
         <p className="muted">These work from any app while Leverage is running.</p>
         {failedHotkeys.length > 0 && (
           <div className="banner warning" role="alert">
-            {failedHotkeys.map(pretty).join(', ')} could not be registered — another app may already use{' '}
-            {failedHotkeys.length > 1 ? 'them' : 'it'}.
+            {failedHotkeys.map(pretty).join(', ')} could not be registered — another app may already
+            use {failedHotkeys.length > 1 ? 'them' : 'it'}.
           </div>
         )}
         {(Object.keys(HOTKEY_LABELS) as (keyof SettingsT['hotkeys'])[]).map((k) => (
