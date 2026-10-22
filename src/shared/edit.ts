@@ -172,6 +172,24 @@ export function cutRange(e: EditDoc, outStartMs: number, outEndMs: number): Edit
   return { ...e, clips: kept }
 }
 
+/**
+ * Remove a range of SOURCE time wherever it plays: clips overlapping it shrink, split or vanish.
+ * Used by transcript edits, filler and silence removal, and AI cuts. Never leaves zero clips.
+ */
+export function removeSourceRange(e: EditDoc, srcStartMs: number, srcEndMs: number): EditDoc {
+  const a = Math.min(srcStartMs, srcEndMs)
+  const b = Math.max(srcStartMs, srcEndMs)
+  if (b <= a || !e.clips.some((c) => c.srcStartMs < b && a < c.srcEndMs)) return e
+  const clips = e.clips.flatMap((c) => {
+    if (c.srcEndMs <= a || b <= c.srcStartMs) return [c]
+    const parts: Clip[] = []
+    if (a > c.srcStartMs) parts.push({ ...c, srcEndMs: a })
+    if (b < c.srcEndMs) parts.push({ id: parts.length ? newId() : c.id, srcStartMs: b, srcEndMs: c.srcEndMs })
+    return parts.filter((p) => len(p) >= MIN_CLIP_MS)
+  })
+  return clips.length === 0 ? e : { ...e, clips }
+}
+
 export function moveClip(e: EditDoc, clipId: string, toIndex: number): EditDoc {
   const from = e.clips.findIndex((c) => c.id === clipId)
   if (from < 0) return e
