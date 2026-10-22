@@ -27,7 +27,7 @@ export function pseudoPixelate(
   img: Pixels,
   area: Rect,
   block: number
-): { rect: Rect; data: Uint8ClampedArray } {
+): { rect: Rect; data: Uint8ClampedArray<ArrayBuffer> } {
   const n = normalizeRect(area)
   const x0 = Math.max(0, Math.round(n.x))
   const y0 = Math.max(0, Math.round(n.y))
