@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { EditDoc } from '../../../shared/edit'
-import { flaggedPhrases, wordAtSource, wordState, type Transcript } from '../../../shared/transcript'
+import { flaggedPhrases, wordAtSource, wordStates, type Transcript } from '../../../shared/transcript'
 
 export type WordSelection = { from: number; to: number } | null
 
@@ -83,6 +83,51 @@ export default function TranscriptPanel(p: Props): React.JSX.Element {
   }, [words])
   const current = wordAtSource(words, p.srcMs)
   const sel = p.selection
+
+  // The word list only re-renders when the edit, words or selection change — not on every playback
+  // frame. Callbacks are read through a ref so their identity doesn't invalidate the memo.
+  const states = useMemo(() => wordStates(p.edit, words), [p.edit, words])
+  const latest = useRef(p)
+  latest.current = p
+  const wordSpans = useMemo(
+    () =>
+      words.map((w, i) => {
+        const selected = sel !== null && i >= sel.from && i <= sel.to
+        const cls = ['word', states[i], selected && 'selected', flagged.has(i) && 'flagged'].filter(Boolean).join(' ')
+        return (
+          <span key={i}>
+            <span
+              data-testid="word"
+              data-index={i}
+              data-state={states[i]}
+              data-flagged={flagged.has(i) ? 'true' : undefined}
+              className={cls}
+              title={flagged.has(i) ? 'Often a filler phrase — cut it if it adds nothing' : undefined}
+              onClick={(e) => {
+                const { selection, onSelect, onSeekWord } = latest.current
+                if (e.shiftKey && selection) onSelect({ from: Math.min(selection.from, i), to: Math.max(selection.to, i) })
+                else {
+                  onSelect({ from: i, to: i })
+                  onSeekWord(i)
+                }
+              }}
+            >
+              {w.text}
+            </span>{' '}
+          </span>
+        )
+      }),
+    [words, states, sel, flagged]
+  )
+
+  // The playing word is highlighted directly on the DOM, so playback doesn't re-render the list.
+  const list = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    const el = list.current
+    if (!el) return
+    el.querySelector('.word.current')?.classList.remove('current')
+    if (current >= 0) el.querySelector(`[data-index="${current}"]`)?.classList.add('current')
+  }, [current, wordSpans])
   const busy = status.kind === 'transcribing' || status.kind === 'installing'
 
   return (
@@ -151,34 +196,8 @@ export default function TranscriptPanel(p: Props): React.JSX.Element {
       )}
 
       {words.length > 0 && (
-        <p className="transcript-words" aria-label="Transcript">
-          {words.map((w, i) => {
-            const state = wordState(p.edit, w)
-            const selected = sel !== null && i >= sel.from && i <= sel.to
-            const cls = ['word', state, selected && 'selected', i === current && 'current', flagged.has(i) && 'flagged']
-              .filter(Boolean)
-              .join(' ')
-            return (
-              <span key={i}>
-                <span
-                  data-testid="word"
-                  data-state={state}
-                  data-flagged={flagged.has(i) ? 'true' : undefined}
-                  className={cls}
-                  title={flagged.has(i) ? 'Often a filler phrase — cut it if it adds nothing' : undefined}
-                  onClick={(e) => {
-                    if (e.shiftKey && sel) p.onSelect({ from: Math.min(sel.from, i), to: Math.max(sel.to, i) })
-                    else {
-                      p.onSelect({ from: i, to: i })
-                      p.onSeekWord(i)
-                    }
-                  }}
-                >
-                  {w.text}
-                </span>{' '}
-              </span>
-            )
-          })}
+        <p className="transcript-words" aria-label="Transcript" ref={list}>
+          {wordSpans}
         </p>
       )}
       {p.children}

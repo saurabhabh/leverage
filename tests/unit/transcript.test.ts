@@ -86,3 +86,28 @@ describe('words against an edit', () => {
     expect(toTrackTime([w('hi', 0, 300)], 120)).toEqual([w('hi', 120, 420)])
   })
 })
+
+describe('wordStates (all words at once)', () => {
+  test('matches wordState for every word across cuts and reorders', async () => {
+    const { wordStates } = await import('../../src/shared/transcript')
+    const many: Word[] = Array.from({ length: 200 }, (_, i) => w(`w${i}`, i * 50, i * 50 + 40))
+    let e = doc([[0, 10_000]])
+    const { cutRange: cr, moveClip } = await import('../../src/shared/edit')
+    e = cr(e, 1234, 2345)
+    e = cr(e, 4000, 4100)
+    e = cr(e, 6010, 7777)
+    e = moveClip(e, e.clips[2].id, 0)
+    expect(wordStates(e, many)).toEqual(many.map((x) => wordState(e, x)))
+  })
+
+  test('an hour of words against 300 clips takes well under a frame', async () => {
+    const { wordStates } = await import('../../src/shared/transcript')
+    const many: Word[] = Array.from({ length: 9000 }, (_, i) => w('x', i * 400, i * 400 + 300))
+    const clips: [number, number][] = Array.from({ length: 300 }, (_, i) => [i * 12_000, i * 12_000 + 10_000])
+    const e = doc(clips)
+    wordStates(e, many)
+    const t0 = performance.now()
+    wordStates(e, many)
+    expect(performance.now() - t0).toBeLessThan(8)
+  })
+})

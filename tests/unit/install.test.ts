@@ -28,6 +28,13 @@ beforeAll(async () => {
   model = Buffer.alloc(200_000, 7)
   server = createServer((req, res) => {
     requests.push(req.url!)
+    if (req.url === '/dropped') {
+      // Send half the model, then cut the connection (Wi-Fi drop mid-download).
+      res.setHeader('content-length', model.length)
+      res.write(model.subarray(0, model.length / 2))
+      setTimeout(() => res.socket?.destroy(), 50)
+      return
+    }
     if (req.url === '/broken') {
       res.statusCode = 500
       return res.end('nope')
@@ -63,9 +70,9 @@ beforeEach(() => {
   slow = false
 })
 
-const sources = (patch: Partial<{ engineUrl: string; engineSha: string; modelSha: string }> = {}): Sources => ({
+const sources = (patch: Partial<{ engineUrl: string; engineSha: string; modelSha: string; modelUrl: string }> = {}): Sources => ({
   engine: { url: base + (patch.engineUrl ?? '/engine.zip'), sha256: patch.engineSha ?? sha(zip), size: zip.length },
-  model: { url: `${base}/model.bin`, sha256: patch.modelSha ?? sha(model), size: model.length }
+  model: { url: base + (patch.modelUrl ?? '/model.bin'), sha256: patch.modelSha ?? sha(model), size: model.length }
 })
 
 describe('installWhisper', () => {
@@ -103,6 +110,21 @@ describe('installWhisper', () => {
     await installWhisper(root, { sources: sources(), onProgress: () => {} })
     expect(requests).toEqual([])
   })
+
+  test('a connection dropped mid-download gives a clear message and a retry works', async () => {
+    await expect(installWhisper(root, { sources: sources({ modelUrl: '/dropped' }), onProgress: () => {} })).rejects.toThrow(
+      'Download of ggml-base.bin was interrupted — check your internet connection and try again'
+    )
+    expect(readdirSync(join(root, 'models'))).toEqual([])
+    await installWhisper(root, { sources: sources(), onProgress: () => {} })
+    expect(whisperStatus(root)).toMatchObject({ engine: true, model: true })
+  })
+
+  test('a file that cannot be written fails cleanly (no crash, no hang)', async () => {
+    // A directory where the download's part file should go makes every write fail.
+    mkdirSync(join(root, 'models', 'ggml-base.bin.part'), { recursive: true })
+    await expect(installWhisper(root, { sources: sources(), onProgress: () => {} })).rejects.toThrow(/Could not save ggml-base.bin/)
+  }, 15_000)
 
   test('cancel aborts and cleans the part file', async () => {
     slow = true

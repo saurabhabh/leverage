@@ -60,3 +60,13 @@ test('providerError maps 401, 429, 503 and network errors', () => {
   expect(providerError('Groq', 0, '').message).toBe('Could not reach Groq — check your internet connection')
   expect(providerError('Groq', 400, '{"error":{"message":"file too large"}}').message).toBe('Groq: file too large')
 })
+
+test('cancelling a Groq transcription reports "Transcription cancelled", not an error', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'lev-groq-'))
+  const a = join(dir, 'a.mp3')
+  writeFileSync(a, 'x')
+  const aborting = (async () => {
+    throw new DOMException('This operation was aborted', 'AbortError')
+  }) as unknown as typeof fetch
+  await expect(transcribeGroq('k', [{ file: a, startMs: 0 }], aborting, 'http://groq.test/openai/v1')).rejects.toThrow('Transcription cancelled')
+})

@@ -51,3 +51,12 @@ test.skipIf(!haveEngine)('silent audio gives no words', async () => {
   // Whisper may hallucinate a stray token on pure silence; it must not invent speech.
   expect(words.length).toBeLessThanOrEqual(2)
 }, 120_000)
+
+test('a cancel that arrives before whisper starts stops it from running at all', async () => {
+  const ac = new AbortController()
+  ac.abort()
+  // Paths that would fail with ENOENT if it tried to spawn.
+  await expect(transcribeLocal({ cli: 'Z:\missing\whisper-cli.exe', model: 'Z:\m.bin' }, 'Z:\a.wav', () => {}, ac.signal)).rejects.toThrow(
+    'Transcription cancelled'
+  )
+})

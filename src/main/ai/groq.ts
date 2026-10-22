@@ -21,17 +21,24 @@ export async function transcribeGroq(
   const words: Word[] = []
   let language = 'unknown'
   for (const chunk of chunks) {
+    if (signal?.aborted) throw new Error('Transcription cancelled')
     const form = new FormData()
     form.append('file', new Blob([await readFile(chunk.file)], { type: 'audio/mpeg' }), basename(chunk.file))
     form.append('model', GROQ_TRANSCRIBE_MODEL)
     form.append('response_format', 'verbose_json')
     form.append('timestamp_granularities[]', 'word')
-    const res = await providerFetch('Groq', fetchImpl, `${base}/audio/transcriptions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}` },
-      body: form,
-      signal
-    })
+    let res: Response
+    try {
+      res = await providerFetch('Groq', fetchImpl, `${base}/audio/transcriptions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}` },
+        body: form,
+        signal
+      })
+    } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') throw new Error('Transcription cancelled')
+      throw err
+    }
     const body = (await res.json()) as { language?: string; words?: GroqWord[] }
     if (body.language) language = body.language
     for (const w of body.words ?? []) {

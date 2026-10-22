@@ -53,6 +53,8 @@ export async function transcribeLocal(
   onProgress: (pct: number) => void,
   signal?: AbortSignal
 ): Promise<{ language: string; words: Word[] }> {
+  // An abort listener added after the signal fired never runs, so check first.
+  if (signal?.aborted) throw new Error('Transcription cancelled')
   const work = await mkdtemp(join(tmpdir(), 'leverage-whisper-'))
   try {
     const threads = String(Math.max(2, cpus().length - 1))

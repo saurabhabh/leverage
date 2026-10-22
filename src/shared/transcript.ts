@@ -81,6 +81,26 @@ export function wordState(e: EditDoc, w: Word): 'kept' | 'cut' | 'partial' {
   return covered >= length ? 'kept' : 'partial'
 }
 
+/**
+ * wordState for every word in one sweep: O(words + clips) instead of O(words × clips), so a long
+ * transcript stays cheap to draw. Words must be in time order (they always are).
+ */
+export function wordStates(e: EditDoc, words: Word[]): ('kept' | 'cut' | 'partial')[] {
+  const clips = [...e.clips].sort((a, b) => a.srcStartMs - b.srcStartMs)
+  let first = 0
+  return words.map((w) => {
+    const end = Math.max(w.endMs, w.startMs + 1)
+    while (first < clips.length && clips[first].srcEndMs <= w.startMs) first++
+    let covered = 0
+    for (let i = first; i < clips.length && clips[i].srcStartMs < end; i++) {
+      covered += Math.max(0, Math.min(clips[i].srcEndMs, end) - Math.max(clips[i].srcStartMs, w.startMs))
+    }
+    const length = end - w.startMs
+    if (covered <= 0) return 'cut'
+    return covered >= length ? 'kept' : 'partial'
+  })
+}
+
 /** Index of the word under a source time, or -1. */
 export function wordAtSource(words: Word[], srcMs: number): number {
   let lo = 0

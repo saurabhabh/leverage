@@ -1,6 +1,9 @@
 import { execFile } from 'child_process'
 import { createHash } from 'crypto'
 import { createWriteStream, existsSync, readFileSync } from 'fs'
+import { Readable, Transform } from 'stream'
+import { pipeline } from 'stream/promises'
+import type { ReadableStream as WebReadableStream } from 'stream/web'
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 
@@ -68,27 +71,32 @@ async function download(
     }
     if (!res.ok || !res.body) throw new Error(`Download failed for ${label} (HTTP ${res.status})`)
     const hash = createHash('sha256')
-    const out = createWriteStream(part)
     let got = 0
-    try {
-      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
-        if (signal?.aborted) throw new Cancelled()
+    // pipeline settles on ANY failure — network, disk (ENOSPC/EACCES), or cancel — and closes both ends.
+    const meter = new Transform({
+      transform(chunk: Buffer, _enc, done) {
         hash.update(chunk)
         got += chunk.length
-        if (!out.write(chunk)) await new Promise<void>((r) => out.once('drain', () => r()))
         onProgress(Math.min(99, Math.round((got / src.size) * 100)))
+        done(null, chunk)
       }
+    })
+    try {
+      await pipeline(Readable.fromWeb(res.body as unknown as WebReadableStream), meter, createWriteStream(part), { signal })
     } catch (err) {
       if (signal?.aborted) throw new Cancelled()
-      throw err
-    } finally {
-      await new Promise<void>((r) => out.end(() => r()))
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'ENOSPC') throw new Error(`Could not save ${label}: not enough disk space`, { cause: err })
+      if (code && /^E[A-Z]+$/.test(code) && code !== 'ECONNRESET' && code !== 'ETIMEDOUT')
+        throw new Error(`Could not save ${label} (${code})`, { cause: err })
+      throw new Error(`Download of ${label} was interrupted — check your internet connection and try again`, { cause: err })
     }
     if (hash.digest('hex') !== src.sha256) throw new Error(`Download check failed for ${label}`)
     await rename(part, dest)
     onProgress(100)
   } catch (err) {
-    await rm(part, { force: true })
+    // Best-effort cleanup: never let it hide the real error.
+    await rm(part, { force: true, recursive: true }).catch(() => undefined)
     throw err
   }
 }

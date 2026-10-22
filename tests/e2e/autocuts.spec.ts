@@ -111,3 +111,44 @@ test('AI suggestions from a mock Groq appear with reasons; Apply cuts those word
     server.close()
   }
 })
+
+test('re-transcribing clears AI suggestions made against the old words', async () => {
+  const { createServer } = await import('http')
+  const server = createServer((req, res) => {
+    req.resume()
+    req.on('end', () => {
+      res.setHeader('content-type', 'application/json')
+      if (req.url!.endsWith('/audio/transcriptions')) {
+        res.end(JSON.stringify({ language: 'English', words: [{ word: 'Fresh', start: 0.1, end: 0.5 }, { word: 'words', start: 0.5, end: 0.9 }] }))
+      } else {
+        res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ cuts: [{ from: 1, to: 2, reason: 'Old suggestion' }] }) } }] }))
+      }
+    })
+  })
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+  const port = (server.address() as import('net').AddressInfo).port
+  try {
+    const { app, page } = await openEditor(
+      {
+        transcript: [
+          { text: 'One', startMs: 100, endMs: 400 },
+          { text: 'two', startMs: 400, endMs: 700 },
+          { text: 'three', startMs: 700, endMs: 1000 }
+        ]
+      },
+      {
+        settings: { ai: { transcription: 'groq', suggestions: 'groq', groqChatModel: 'm', openrouterModel: 'm' } },
+        env: { LEVERAGE_GROQ_URL: `http://127.0.0.1:${port}/openai/v1` }
+      }
+    )
+    await page.evaluate(() => window.leverage['ai:setKey']('groq', 'test-key-not-real'))
+    await page.getByRole('button', { name: 'Suggest cuts with AI' }).click()
+    await expect(page.getByTestId('suggestion')).toHaveCount(1)
+    await page.getByRole('button', { name: 'Re-transcribe' }).click()
+    await expect(page.getByTestId('word').filter({ hasText: 'Fresh' })).toBeVisible()
+    await expect(page.getByTestId('suggestion')).toHaveCount(0)
+    await app.close()
+  } finally {
+    server.close()
+  }
+})

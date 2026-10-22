@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Word } from '../../../shared/transcript'
 import { cleanError } from './TranscriptPanel'
 
@@ -20,6 +20,12 @@ export default function AiSuggestions({ recordingId, words, onApply }: Props): R
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [minutes, setMinutes] = useState('')
+
+  // Suggestions point at word indexes; a new transcript makes them meaningless.
+  useEffect(() => {
+    setCuts(null)
+    setDropped(0)
+  }, [words])
 
   const ask = async (): Promise<void> => {
     setBusy(true)

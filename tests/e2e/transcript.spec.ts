@@ -26,6 +26,10 @@ test('a seeded transcript shows its words; clicking one seeks there', async () =
   await expect(page.getByTestId('word')).toHaveCount(WORDS.length)
   await word(page, 'test.').click()
   await expect(time(page)).toHaveText(/^00:01\.5 \//)
+  await expect(word(page, 'test.')).toHaveClass(/current/)
+  await word(page, 'Hello').click()
+  await expect(word(page, 'Hello')).toHaveClass(/current/)
+  await expect(word(page, 'test.')).not.toHaveClass(/current/)
   // "You know" is flagged, not cut.
   await expect(word(page, 'You')).toHaveAttribute('data-flagged', 'true')
   await app.close()
@@ -125,4 +129,43 @@ test('Groq transcription (mock server) fills the transcript; a bad key shows the
   } finally {
     server.close()
   }
+})
+
+test('playback stays smooth with an hour-long transcript and many clips', async () => {
+  // 9,000 words (about an hour of speech) and an edit of 100 clips, as after Remove pauses.
+  const long = Array.from({ length: 9000 }, (_, i) => ({ text: 'w' + i, startMs: Math.floor(i * 1.2), endMs: Math.floor(i * 1.2) + 1 }))
+  const clips = Array.from({ length: 100 }, (_, i) => ({ id: 'c' + i, srcStartMs: i * 110, srcEndMs: i * 110 + 100 }))
+  const { app, page, dir } = await openEditor({ transcript: long, micSpeech: true })
+  await page.evaluate(
+    async ({ clips }) => {
+      const opened = await window.leverage['edit:open']('crashed-1')
+      await window.leverage['edit:save']('crashed-1', { ...opened.edit, clips })
+    },
+    { clips }
+  )
+  // Reopen so the editor loads the 300-clip edit.
+  await page.getByRole('button', { name: '← Library' }).click()
+  await page.getByTestId('library-item').getByRole('button', { name: 'Edit' }).click()
+  await expect(page.getByTestId('word')).toHaveCount(9000, { timeout: 20_000 })
+  const fps = (): Promise<number> =>
+    page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let frames = 0
+          const t0 = performance.now()
+          const tick = (): void => {
+            frames++
+            if (performance.now() - t0 < 1000) requestAnimationFrame(tick)
+            else resolve(frames)
+          }
+          requestAnimationFrame(tick)
+        })
+    )
+  // Compare against this machine's own idle frame rate, so the test works at any refresh rate.
+  const idle = await fps()
+  await page.getByRole('button', { name: 'Play' }).click()
+  const playing = await fps()
+  console.log('FPS idle', idle, 'playing', playing, dir)
+  expect(playing / idle).toBeGreaterThan(0.9)
+  await app.close()
 })
