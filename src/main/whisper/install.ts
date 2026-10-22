@@ -82,7 +82,7 @@ async function download(
       if (signal?.aborted) throw new Cancelled()
       throw err
     } finally {
-      await new Promise((r) => out.end(r))
+      await new Promise<void>((r) => out.end(() => r()))
     }
     if (hash.digest('hex') !== src.sha256) throw new Error(`Download check failed for ${label}`)
     await rename(part, dest)
