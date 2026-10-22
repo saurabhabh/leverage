@@ -1,0 +1,99 @@
+:root {
+  --bg: #f6f6f4;
+  --panel: #ffffff;
+  --text: #1c1c1e;
+  --muted: #6b6b70;
+  --border: #e3e3e0;
+  --accent: #e5484d;
+  --accent-text: #ffffff;
+  --nav-bg: #eeeeeb;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161618;
+    --panel: #1f1f22;
+    --text: #ededef;
+    --muted: #9b9ba1;
+    --border: #2e2e33;
+    --accent: #ff6369;
+    --accent-text: #111111;
+    --nav-bg: #111113;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.shell {
+  display: flex;
+  height: 100%;
+}
+
+.nav {
+  width: 180px;
+  background: var(--nav-bg);
+  border-right: 1px solid var(--border);
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  padding: 4px 10px 16px;
+  letter-spacing: 0.2px;
+}
+
+.nav-item {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.nav-item:hover {
+  background: var(--border);
+}
+
+.nav-item.active {
+  background: var(--panel);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  padding: 28px 32px;
+}
+
+.placeholder p {
+  color: var(--muted);
+}

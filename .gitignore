@@ -6,3 +6,12 @@ release/
 *.log
 .env
 .claude/settings.local.json
+.superpowers/
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+test-results/
+playwright-report/
