@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Settings from './settings/Settings'
+import Studio from './studio/Studio'
 
 type Module = 'Studio' | 'Snap' | 'Listen' | 'Library' | 'Settings'
 
@@ -32,7 +33,7 @@ function App(): React.JSX.Element {
         ))}
       </nav>
       <main className="content">
-        {active === 'Studio' && <ComingSoon name="Studio" />}
+        {active === 'Studio' && <Studio />}
         {active === 'Snap' && <ComingSoon name="Snap" />}
         {active === 'Listen' && <ComingSoon name="Listen" />}
         {active === 'Library' && <ComingSoon name="Library" />}

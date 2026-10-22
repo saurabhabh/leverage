@@ -5,6 +5,16 @@ export type Size = { width: number; height: number }
 export type TrackKind = 'screen' | 'camera' | 'mic' | 'system'
 export const TRACK_KINDS: readonly TrackKind[] = ['screen', 'camera', 'mic', 'system']
 
+export type CaptureSource = {
+  id: string
+  kind: 'screen' | 'window'
+  name: string
+  thumbnailDataUrl: string
+  displayId?: string
+  displayBoundsDip?: Rect
+  scaleFactor: number
+}
+
 export const HotkeysSchema = z.object({
   toggle: z.string().min(1),
   pause: z.string().min(1),

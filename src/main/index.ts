@@ -3,9 +3,16 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerCoreIpc } from './ipc'
 import { recoverInterrupted, registerRecordingIpc } from './recording/ipc'
+import { installDisplayMediaHandler, installPermissionHandlers, registerCaptureIpc } from './capture/ipc'
 
 // Tests run against an isolated profile so they never touch the user's settings or library.
 if (process.env['LEVERAGE_USER_DATA']) app.setPath('userData', process.env['LEVERAGE_USER_DATA'])
+
+/** Leverage's own pages: the dev server in development, bundled files otherwise. */
+export function isOwnUrl(url: string): boolean {
+  const dev = process.env['ELECTRON_RENDERER_URL']
+  return url.startsWith('file://') || (!!dev && is.dev && url.startsWith(dev))
+}
 
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -52,6 +59,9 @@ app.whenReady().then(() => {
 
   registerCoreIpc()
   registerRecordingIpc()
+  registerCaptureIpc()
+  installDisplayMediaHandler()
+  installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()
   createWindow()
 

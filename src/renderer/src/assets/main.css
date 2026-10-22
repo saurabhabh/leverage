@@ -183,3 +183,79 @@ kbd {
   border-radius: 4px;
   padding: 2px 8px;
 }
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.tab.active {
+  background: var(--bg);
+  border-color: var(--border);
+  font-weight: 600;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.source {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 8px;
+  text-align: left;
+}
+
+.source img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: #000;
+  border-radius: 4px;
+}
+
+.source span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source.selected {
+  border-color: var(--accent);
+}
+
+select {
+  min-width: 280px;
+  padding: 5px 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.record-btn {
+  font-size: 16px;
+  padding: 10px 28px;
+  border-radius: 999px;
+}
