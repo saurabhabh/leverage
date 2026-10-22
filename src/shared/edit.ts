@@ -69,9 +69,13 @@ export function relativeOffsets(m: RecordingManifest): Partial<Record<keyof Reco
   return Object.fromEntries(entries.map(([k, t]) => [k, t.offsetMs - first]))
 }
 
+/**
+ * Length of the source timeline. durationMs counts from the session start and every track stops at
+ * the same moment, so the timeline runs from the earliest track's start to durationMs.
+ */
 export function sourceDurationMs(m: RecordingManifest): number {
-  const rel = Object.values(relativeOffsets(m)) as number[]
-  return m.durationMs + (rel.length ? Math.max(...rel) : 0)
+  const offsets = Object.values(m.tracks).map((t) => t.offsetMs)
+  return Math.max(0, m.durationMs - (offsets.length ? Math.min(...offsets) : 0))
 }
 
 export function defaultEdit(

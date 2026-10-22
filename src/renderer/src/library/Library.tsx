@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { RecordingManifest, TrackKind } from '../../../shared/types'
+import { exportRecording } from '../editor/exportPrep'
 
 const TRACK_LABEL: Record<TrackKind, string> = { screen: 'Screen', camera: 'Camera', mic: 'Mic', system: 'System audio' }
 
@@ -39,7 +40,7 @@ export default function Library({ onEdit }: { onEdit: (id: string) => void }): R
   const exportAs = async (id: string, kind: 'mp4' | 'gif'): Promise<void> => {
     setJobs((j) => ({ ...j, [id]: { kind, pct: 0 } }))
     try {
-      const out = await window.leverage[kind === 'mp4' ? 'export:mp4' : 'export:gif'](id)
+      const out = await exportRecording(id, kind)
       setJobs((j) => {
         const next = { ...j }
         if (out) next[id] = { done: out }

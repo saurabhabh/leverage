@@ -3,7 +3,12 @@ import { existsSync } from 'fs'
 import { basename, dirname, extname, join } from 'path'
 import { broadcast, handle } from '../ipc'
 import { libraryStore } from '../recording/ipc'
-import { buildGifArgs, buildMp4Args, frameSize } from './exportArgs'
+import { outputDurationMs } from '../../shared/edit'
+import { loadEdit } from '../edit/store'
+import { buildEditedGifArgs, buildEditedMp4Args, pngOverlays } from './editExportArgs'
+import { frameSize } from './exportArgs'
+import { ensureCircleMask } from './mask'
+import { probeSourceMs } from './probe'
 import { runFfmpeg } from './ffmpeg'
 
 /** Never overwrite: `name.mp4` → `name (2).mp4` → … */
@@ -44,12 +49,21 @@ async function exportRecording(
   const { dir, manifest } = found
   const out = await chooseOutput(sender, join(dir, `${safeName(manifest.title)}.${kind}`), kind, outPath)
   if (!out) return null
+  // Every export goes through the edit; a recording never edited gets the default (whole) edit.
+  const { edit } = await loadEdit(dir, manifest, () => probeSourceMs(dir, manifest))
+  // Callout/lower-third PNGs are rendered by the renderer before it asks for an export.
+  const pngs: Record<string, string> = {}
+  for (const o of pngOverlays(edit)) {
+    const png = join(dir, 'overlays', `${o.id}.png`)
+    if (existsSync(png)) pngs[o.id] = png
+  }
+  const mask = edit.camera?.visible && manifest.tracks.camera ? await ensureCircleMask(dir) : null
   const args =
     kind === 'mp4'
-      ? buildMp4Args(manifest, dir, out, { micGain: 1, systemGain: 1, includeCamera: true })
-      : buildGifArgs(manifest, dir, out, { fps: 15, width: Math.min(960, frameSize(manifest).width) })
+      ? buildEditedMp4Args(manifest, edit, dir, out, pngs, mask)
+      : buildEditedGifArgs(manifest, edit, dir, out, pngs, mask, { fps: 15, width: Math.min(960, frameSize(manifest).width) })
   broadcast('export:progress', { id, pct: 0 })
-  await runFfmpeg(args, manifest.durationMs, (pct) => broadcast('export:progress', { id, pct }))
+  await runFfmpeg(args, outputDurationMs(edit), (pct) => broadcast('export:progress', { id, pct }))
   broadcast('export:progress', { id, pct: 100 })
   return out
 }

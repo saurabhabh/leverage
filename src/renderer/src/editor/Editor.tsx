@@ -32,6 +32,7 @@ import Preview, { type PreviewHandle } from './Preview'
 import { PlaybackController } from './player'
 import Timeline, { type Mark, type Selection } from './Timeline'
 import { clock } from './time'
+import { exportRecording } from './exportPrep'
 import './editor.css'
 
 type Props = { recordingId: string; onBack: () => void }
@@ -56,6 +57,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
   const [mark, setMark] = useState<Mark>({})
   const [zoom, setZoom] = useState<number | null>(null)
   const [tool, setTool] = useState<Tool>(null)
+  const [exporting, setExporting] = useState<{ pct: number } | { done: string } | { error: string } | null>(null)
   const preview = useRef<PreviewHandle>(null)
   const player = useRef<PlaybackController | null>(null)
   const history = useRef<History<EditDoc> | null>(null)
@@ -195,6 +197,30 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
   }, [togglePlay, seek, commit, undo, redo, selection])
 
   const total = edit ? outputDurationMs(edit) : 0
+
+  useEffect(
+    () =>
+      window.leverage.on('export:progress', ({ id, pct }) => {
+        if (id === recordingId) setExporting((x) => (x && 'pct' in x ? { pct } : x))
+      }),
+    [recordingId]
+  )
+
+  const runExport = async (kind: 'mp4' | 'gif'): Promise<void> => {
+    if (!edit) return
+    player.current?.pause()
+    setPlaying(false)
+    setExporting({ pct: 0 })
+    try {
+      // Save now rather than waiting for the autosave, so the export has the latest edit.
+      saved.current = edit
+      await window.leverage['edit:save'](recordingId, edit)
+      const out = await exportRecording(recordingId, kind)
+      setExporting(out ? { done: out } : null)
+    } catch (err) {
+      setExporting({ error: err instanceof Error ? err.message.split('\n')[0] : String(err) })
+    }
+  }
   const srcMs = edit ? outputToSource(edit, timeMs).srcMs : 0
   const selectedOverlay =
     selection?.kind === 'overlay' ? edit?.overlays.find((o) => o.id === selection.id) : undefined
@@ -248,6 +274,12 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
           ← Library
         </button>
         <h1>{opened?.manifest.title ?? 'Opening…'}</h1>
+        <button className="btn primary" onClick={() => runExport('mp4')} disabled={!edit || (!!exporting && 'pct' in exporting)}>
+          Export MP4
+        </button>
+        <button className="btn" onClick={() => runExport('gif')} disabled={!edit || (!!exporting && 'pct' in exporting)}>
+          Export GIF
+        </button>
         <button className="btn" onClick={undo} disabled={!history.current?.canUndo} title="Undo (Ctrl+Z)">
           Undo
         </button>
@@ -258,6 +290,24 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
       {error && (
         <div className="banner error" role="alert">
           {error}
+        </div>
+      )}
+      {exporting && 'pct' in exporting && (
+        <div className="progress" role="progressbar" aria-label="Export progress" aria-valuenow={exporting.pct}>
+          <div style={{ width: `${exporting.pct}%` }} />
+        </div>
+      )}
+      {exporting && 'done' in exporting && (
+        <div className="banner" role="status" data-testid="export-done">
+          Exported to {exporting.done}{' '}
+          <button className="btn" onClick={() => window.leverage['shell:showInFolder']((exporting as { done: string }).done)}>
+            Show in Explorer
+          </button>
+        </div>
+      )}
+      {exporting && 'error' in exporting && (
+        <div className="banner error" role="alert">
+          Export failed: {exporting.error}
         </div>
       )}
       {saveError && (

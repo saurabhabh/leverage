@@ -133,8 +133,9 @@ describe('defaults and repair', () => {
     }
   } as unknown as RecordingManifest
 
-  test('sourceDurationMs adds the latest relative offset to the recorded duration', () => {
-    expect(sourceDurationMs(m)).toBe(5100)
+  test('sourceDurationMs: all tracks stop together, so the source runs from the earliest start to the end', () => {
+    // durationMs counts from the session start; the earliest track began 2000 ms in.
+    expect(sourceDurationMs(m)).toBe(3000)
   })
 
   test('defaultEdit is one clip over the whole source, with the camera box', () => {
