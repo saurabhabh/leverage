@@ -75,7 +75,7 @@ async function download(
         if (signal?.aborted) throw new Cancelled()
         hash.update(chunk)
         got += chunk.length
-        if (!out.write(chunk)) await new Promise((r) => out.once('drain', r))
+        if (!out.write(chunk)) await new Promise<void>((r) => out.once('drain', () => r()))
         onProgress(Math.min(99, Math.round((got / src.size) * 100)))
       }
     } catch (err) {
