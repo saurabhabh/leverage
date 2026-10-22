@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerCoreIpc } from './ipc'
+import { recoverInterrupted, registerRecordingIpc } from './recording/ipc'
 
 // Tests run against an isolated profile so they never touch the user's settings or library.
 if (process.env['LEVERAGE_USER_DATA']) app.setPath('userData', process.env['LEVERAGE_USER_DATA'])
@@ -50,6 +51,8 @@ app.whenReady().then(() => {
   })
 
   registerCoreIpc()
+  registerRecordingIpc()
+  void recoverInterrupted()
   createWindow()
 
   app.on('activate', function () {

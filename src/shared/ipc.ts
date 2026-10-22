@@ -1,13 +1,23 @@
-import type { Settings } from './types'
+import type { RecordingManifest, Settings, TrackKind } from './types'
+import type { CreateInitPayload } from './recording'
 
 /**
  * Single source of truth for renderer → main calls. Each key is both the IPC channel and the
- * method name on `window.leverage`. Later tasks add entries here and a handler in main/ipc.ts.
+ * method name on `window.leverage`. Later tasks add entries here and a handler in main.
  */
 export interface InvokeApi {
   'settings:get': () => Promise<Settings>
   'settings:set': (settings: Settings) => Promise<Settings>
   'dialog:pickFolder': (defaultPath?: string) => Promise<string | null>
+
+  'rec:create': (init: CreateInitPayload) => Promise<{ id: string; dir: string }>
+  'rec:chunk': (id: string, track: TrackKind, data: ArrayBuffer) => Promise<void>
+  'rec:offset': (id: string, track: TrackKind, offsetMs: number) => Promise<void>
+  'rec:disable': (id: string, track: TrackKind, reason: string) => Promise<void>
+  'rec:update': (id: string, patch: Pick<Partial<RecordingManifest>, 'bubble' | 'crop'>) => Promise<void>
+  'rec:finalize': (id: string, durationMs: number) => Promise<RecordingManifest>
+  'rec:abort': (id: string) => Promise<void>
+  'rec:list': () => Promise<RecordingManifest[]>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -15,17 +25,26 @@ export type InvokeChannel = keyof InvokeApi
 export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'settings:get',
   'settings:set',
-  'dialog:pickFolder'
+  'dialog:pickFolder',
+  'rec:create',
+  'rec:chunk',
+  'rec:offset',
+  'rec:disable',
+  'rec:update',
+  'rec:finalize',
+  'rec:abort',
+  'rec:list'
 ]
 
 /** Main → renderer events. */
 export interface EventMap {
   'settings:changed': Settings
+  'library:changed': null
 }
 
 export type EventChannel = keyof EventMap
 
-export const EVENT_CHANNELS: readonly EventChannel[] = ['settings:changed']
+export const EVENT_CHANNELS: readonly EventChannel[] = ['settings:changed', 'library:changed']
 
 export type LeverageApi = InvokeApi & {
   on<C extends EventChannel>(channel: C, listener: (payload: EventMap[C]) => void): () => void
