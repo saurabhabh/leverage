@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Settings from './settings/Settings'
 import Studio from './studio/Studio'
 import Library from './library/Library'
+import Editor from './editor/Editor'
 
 type Module = 'Studio' | 'Snap' | 'Listen' | 'Library' | 'Settings'
 
@@ -18,6 +19,7 @@ function ComingSoon({ name }: { name: string }): React.JSX.Element {
 
 function App(): React.JSX.Element {
   const [active, setActive] = useState<Module>('Studio')
+  const [editing, setEditing] = useState<string | null>(null)
 
   return (
     <div className="shell">
@@ -27,7 +29,10 @@ function App(): React.JSX.Element {
           <button
             key={m}
             className={m === active ? 'nav-item active' : 'nav-item'}
-            onClick={() => setActive(m)}
+            onClick={() => {
+              setEditing(null)
+              setActive(m)
+            }}
           >
             {m}
           </button>
@@ -40,7 +45,8 @@ function App(): React.JSX.Element {
         </div>
         {active === 'Snap' && <ComingSoon name="Snap" />}
         {active === 'Listen' && <ComingSoon name="Listen" />}
-        {active === 'Library' && <Library />}
+        {active === 'Library' && !editing && <Library onEdit={setEditing} />}
+        {active === 'Library' && editing && <Editor recordingId={editing} onBack={() => setEditing(null)} />}
         {active === 'Settings' && <Settings />}
       </main>
     </div>

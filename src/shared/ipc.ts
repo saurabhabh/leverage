@@ -14,6 +14,9 @@ export type RecorderStatus = {
 }
 export type BubblePlacement = { xDip: number; yDip: number; sizeDip: number }
 import type { CreateInitPayload } from './recording'
+import type { EditDoc } from './edit'
+
+export type OpenedEdit = { manifest: RecordingManifest; dir: string; edit: EditDoc; repaired: boolean; sourceMs: number }
 
 /**
  * Single source of truth for renderer → main calls. Each key is both the IPC channel and the
@@ -58,6 +61,12 @@ export interface InvokeApi {
   /** Moves the recording folder to the Recycle Bin. */
   'rec:delete': (id: string) => Promise<void>
   'rec:dir': (id: string) => Promise<string | null>
+
+  'edit:open': (id: string) => Promise<OpenedEdit>
+  'edit:save': (id: string, edit: EditDoc) => Promise<void>
+  'edit:overlayPng': (id: string, overlayId: string, data: ArrayBuffer) => Promise<void>
+  /** leverage-media:// URL for a track; renderers never see file paths. */
+  'edit:mediaUrl': (id: string, track: TrackKind) => Promise<string>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -90,7 +99,11 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'export:gif',
   'shell:showInFolder',
   'rec:delete',
-  'rec:dir'
+  'rec:dir',
+  'edit:open',
+  'edit:save',
+  'edit:overlayPng',
+  'edit:mediaUrl'
 ]
 
 /** Main → renderer events. */

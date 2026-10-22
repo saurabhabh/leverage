@@ -11,7 +11,7 @@ const duration = (ms: number): string => {
 
 type Job = { kind: 'mp4' | 'gif'; pct: number } | { done: string } | { error: string }
 
-export default function Library(): React.JSX.Element {
+export default function Library({ onEdit }: { onEdit: (id: string) => void }): React.JSX.Element {
   const [items, setItems] = useState<RecordingManifest[] | null>(null)
   const [jobs, setJobs] = useState<Record<string, Job>>({})
 
@@ -91,7 +91,10 @@ export default function Library(): React.JSX.Element {
                 </div>
               </div>
               <div className="library-actions">
-                <button className="btn primary" disabled={busy || !m.tracks.screen} onClick={() => exportAs(m.id, 'mp4')}>
+                <button className="btn primary" disabled={busy || !m.tracks.screen || m.status === 'recording'} onClick={() => onEdit(m.id)}>
+                  Edit
+                </button>
+                <button className="btn" disabled={busy || !m.tracks.screen} onClick={() => exportAs(m.id, 'mp4')}>
                   Export MP4
                 </button>
                 <button className="btn" disabled={busy || !m.tracks.screen} onClick={() => exportAs(m.id, 'gif')}>

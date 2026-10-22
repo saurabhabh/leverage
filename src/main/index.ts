@@ -8,11 +8,14 @@ import { initControl, registerHotkeysFromSettings } from './control'
 import { recoverInterrupted, registerRecordingIpc } from './recording/ipc'
 import { registerOverlayIpc } from './windows/overlay'
 import { registerExportIpc } from './media/exportIpc'
+import { registerEditIpc, registerMediaScheme } from './edit/ipc'
 import {
   installDisplayMediaHandler,
   installPermissionHandlers,
   registerCaptureIpc
 } from './capture/ipc'
+
+registerMediaScheme()
 
 // Tests run against an isolated profile so they never touch the user's settings or library.
 if (process.env['LEVERAGE_USER_DATA']) app.setPath('userData', process.env['LEVERAGE_USER_DATA'])
@@ -84,6 +87,7 @@ app.whenReady().then(() => {
   registerCaptureIpc()
   registerOverlayIpc()
   registerExportIpc()
+  registerEditIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()

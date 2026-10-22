@@ -1,0 +1,39 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.editor-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-top h1 {
+  margin: 0;
+  font-size: 18px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-frame {
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-frame video {
+  max-width: 100%;
+  max-height: 100%;
+}
