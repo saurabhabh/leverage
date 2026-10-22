@@ -14,6 +14,7 @@ function App(): React.JSX.Element {
   const [active, setActive] = useState<Module>('Studio')
   const [editing, setEditing] = useState<string | null>(null)
   const [snapEditing, setSnapEditing] = useState<string | null>(null)
+  const [listenNote, setListenNote] = useState<string | null>(null)
 
   // A capture accepted with Enter opens straight in the Snap editor.
   useEffect(
@@ -49,13 +50,20 @@ function App(): React.JSX.Element {
           <Studio />
         </div>
         {active === 'Snap' && <Snap editing={snapEditing} onEdit={setSnapEditing} />}
-        {active === 'Listen' && <Listen />}
+        {/* Listen stays mounted too: a meeting keeps recording while other pages are open. */}
+        <div hidden={active !== 'Listen'}>
+          <Listen note={listenNote} onNote={setListenNote} />
+        </div>
         {active === 'Library' && !editing && (
           <Library
             onEdit={setEditing}
             onEditSnap={(id) => {
               setSnapEditing(id)
               setActive('Snap')
+            }}
+            onNotes={(id) => {
+              setListenNote(id)
+              setActive('Listen')
             }}
           />
         )}

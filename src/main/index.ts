@@ -14,6 +14,7 @@ import { registerWhisperIpc } from './whisper/ipc'
 import { registerTranscribeIpc } from './transcribe/ipc'
 import { registerSnapIpc } from './snap/ipc'
 import { registerListenIpc } from './listen/ipc'
+import { recoverNotes, registerNotesIpc } from './listen/notesIpc'
 import {
   installDisplayMediaHandler,
   installPermissionHandlers,
@@ -98,9 +99,11 @@ app.whenReady().then(() => {
   registerTranscribeIpc()
   registerSnapIpc(() => mainWindow)
   registerListenIpc()
+  registerNotesIpc()
   installDisplayMediaHandler()
   installPermissionHandlers(isOwnUrl)
   void recoverInterrupted()
+  void recoverNotes().catch(() => undefined)
 
   mainWindow = createWindow()
   initControl(() => mainWindow, trayIcon)

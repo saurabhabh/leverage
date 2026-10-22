@@ -13,9 +13,9 @@ const duration = (ms: number): string => {
 
 type Job = { kind: 'mp4' | 'gif'; pct: number } | { done: string } | { error: string }
 
-type Props = { onEdit: (id: string) => void; onEditSnap: (id: string) => void }
+type Props = { onEdit: (id: string) => void; onEditSnap: (id: string) => void; onNotes: (noteId: string) => void }
 
-export default function Library({ onEdit, onEditSnap }: Props): React.JSX.Element {
+export default function Library({ onEdit, onEditSnap, onNotes }: Props): React.JSX.Element {
   const [tab, setTab] = useState<'Recordings' | 'Screenshots'>('Recordings')
   return (
     <div className="page library">
@@ -27,12 +27,12 @@ export default function Library({ onEdit, onEditSnap }: Props): React.JSX.Elemen
           </button>
         ))}
       </div>
-      {tab === 'Recordings' ? <Recordings onEdit={onEdit} /> : <SnapGallery onOpen={onEditSnap} />}
+      {tab === 'Recordings' ? <Recordings onEdit={onEdit} onNotes={onNotes} /> : <SnapGallery onOpen={onEditSnap} />}
     </div>
   )
 }
 
-function Recordings({ onEdit }: { onEdit: (id: string) => void }): React.JSX.Element {
+function Recordings({ onEdit, onNotes }: Pick<Props, 'onEdit' | 'onNotes'>): React.JSX.Element {
   const [items, setItems] = useState<RecordingManifest[] | null>(null)
   const [jobs, setJobs] = useState<Record<string, Job>>({})
 
@@ -68,7 +68,7 @@ function Recordings({ onEdit }: { onEdit: (id: string) => void }): React.JSX.Ele
         return next
       })
     } catch (err) {
-      setJobs((j) => ({ ...j, [id]: { error: err instanceof Error ? err.message.split('\n')[0] : String(err) } }))
+      setJobs((j) => ({ ...j, [id]: { error: `Export failed: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}` } }))
     }
   }
 
@@ -120,6 +120,19 @@ function Recordings({ onEdit }: { onEdit: (id: string) => void }): React.JSX.Ele
                 <button className="btn" disabled={busy || !m.tracks.screen} onClick={() => exportAs(m.id, 'gif')}>
                   Export GIF
                 </button>
+                <button
+                  className="btn"
+                  disabled={busy || m.status === 'recording' || !(m.tracks.mic || m.tracks.system)}
+                  title="Transcript and AI summary in Listen"
+                  onClick={() =>
+                    window.leverage['notes:fromRecording'](m.id).then(
+                      (n) => onNotes(n.id),
+                      (err) => setJobs((j) => ({ ...j, [m.id]: { error: `Could not make notes: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}` } }))
+                    )
+                  }
+                >
+                  Make notes
+                </button>
                 <button className="btn" onClick={() => showInFolder(m)}>
                   Show in Explorer
                 </button>
@@ -134,7 +147,7 @@ function Recordings({ onEdit }: { onEdit: (id: string) => void }): React.JSX.Ele
               </div>
             )}
             {job && 'done' in job && <div className="muted">Saved to {job.done}</div>}
-            {job && 'error' in job && <div className="banner error">Export failed: {job.error}</div>}
+            {job && 'error' in job && <div className="banner error">{job.error}</div>}
           </section>
         )
       })}

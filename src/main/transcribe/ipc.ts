@@ -35,7 +35,8 @@ export async function readTranscript(dir: string): Promise<Transcript | null> {
   }
 }
 
-async function run(id: string): Promise<Transcript> {
+/** Transcribe a recording (engine from Settings) and save transcript.json beside it. */
+export async function transcribeRecording(id: string): Promise<Transcript> {
   const { dir, manifest } = await recording(id)
   const speech = speechTrack(manifest)
   if (!speech) throw new Error('This recording has no microphone or system audio to transcribe.')
@@ -123,7 +124,7 @@ async function suggestCuts(id: string, targetSeconds?: number): Promise<{
 export function registerTranscribeIpc(): void {
   handle('ai:suggestCuts', (_e, id, targetSeconds) => suggestCuts(id, targetSeconds))
   handle('autocut:silences', (_e, id) => silences(id))
-  handle('transcribe:run', (_e, id) => run(id))
+  handle('transcribe:run', (_e, id) => transcribeRecording(id))
   handle('transcribe:get', async (_e, id) => readTranscript((await recording(id)).dir))
   handle('transcribe:cancel', (_e, id) => running.get(id)?.abort())
 }

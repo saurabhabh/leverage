@@ -17,7 +17,7 @@ import type { CreateInitPayload } from './recording'
 import type { EditDoc } from './edit'
 import type { Transcript } from './transcript'
 import type { SnapAction, SnapDoc, SnapEntry, SnapMode } from './snap'
-import type { DictationEntry, DictationStatus } from './listen'
+import type { DictationEntry, DictationStatus, NoteDoc, NoteEntry } from './listen'
 import type { GateDecision } from './speechGate'
 
 /** Pill → main: what was recorded, and whether anything was said. */
@@ -140,6 +140,24 @@ export interface InvokeApi {
   'dictate:copy': (id: string) => Promise<void>
   'dictate:remove': (id: string) => Promise<void>
   'dictate:clear': () => Promise<void>
+
+  'notes:list': () => Promise<NoteEntry[]>
+  'notes:get': (id: string) => Promise<NoteDoc>
+  /** Only the title and the user's own notes can be changed from a page. */
+  'notes:save': (id: string, patch: { title?: string; notes?: string }) => Promise<NoteDoc>
+  /** Moves the note folder (and its audio) to the Recycle Bin. */
+  'notes:delete': (id: string) => Promise<void>
+  /** Write (or rewrite) the AI summary; only the transcript and the user's notes are sent. */
+  'notes:summarize': (id: string) => Promise<NoteDoc>
+  /** Transcribe and summarise again (after a failure). */
+  'notes:retry': (id: string) => Promise<void>
+  /** A note for a Studio recording: its transcript (made if missing), then a summary. */
+  'notes:fromRecording': (recordingId: string) => Promise<NoteDoc>
+  'notes:meetingStart': (title: string) => Promise<NoteDoc>
+  'notes:meetingChunk': (id: string, track: 'mic' | 'system', data: ArrayBuffer) => Promise<void>
+  'notes:meetingWarn': (id: string, warning: string) => Promise<void>
+  /** Recording finished: transcribe and summarise in the background. */
+  'notes:meetingStop': (id: string, durationMs: number) => Promise<void>
 }
 
 export type InvokeChannel = keyof InvokeApi
@@ -213,7 +231,18 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'dictate:retry',
   'dictate:copy',
   'dictate:remove',
-  'dictate:clear'
+  'dictate:clear',
+  'notes:list',
+  'notes:get',
+  'notes:save',
+  'notes:delete',
+  'notes:summarize',
+  'notes:retry',
+  'notes:fromRecording',
+  'notes:meetingStart',
+  'notes:meetingChunk',
+  'notes:meetingWarn',
+  'notes:meetingStop'
 ]
 
 /** Main → renderer events. */
@@ -233,6 +262,8 @@ export interface EventMap {
   /** To the pill only. */
   'dictate:command': DictateCommand
   'dictate:historyChanged': null
+  /** A note was created, changed or removed (id), or the list changed (null). */
+  'notes:changed': { id: string | null }
 }
 
 export type EventChannel = keyof EventMap
@@ -249,7 +280,8 @@ export const EVENT_CHANNELS: readonly EventChannel[] = [
   'snap:changed',
   'dictate:status',
   'dictate:command',
-  'dictate:historyChanged'
+  'dictate:historyChanged',
+  'notes:changed'
 ]
 
 export type LeverageApi = InvokeApi & {
