@@ -4,7 +4,8 @@ import { mkdtempSync } from 'fs'
 import ffmpeg from 'ffmpeg-static'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { buildEditedMp4Args } from '../../src/main/media/editExportArgs'
+import { exportEdit } from '../../src/main/media/editExport'
+import { execFfmpeg } from '../../src/main/media/ffmpeg'
 import type { RecordingManifest } from '../../src/shared/types'
 
 const run = (args: string[]): string =>
@@ -22,7 +23,7 @@ function silences(file: string): { start: number; end: number }[] {
   return starts.map((s, i) => ({ start: s, end: ends[i] ?? Infinity }))
 }
 
-test('mixed mic + system audio keep their start offsets in the exported MP4', () => {
+test('mixed mic + system audio keep their start offsets in the exported MP4', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'lev-sync-'))
   // 4 s of video; a 1 s tone for the mic (starts at t0) and a 1 s tone for system audio that started 2 s later.
   run(['-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=320x240:r=15', '-t', '4', '-c:v', 'libvpx', join(dir, 'screen.webm')])
@@ -46,7 +47,7 @@ test('mixed mic + system audio keep their start offsets in the exported MP4', ()
   }
   const out = join(dir, 'out.mp4')
   const whole = { version: 1 as const, clips: [{ id: 'all', srcStartMs: 0, srcEndMs: 4000 }], overlays: [], camera: null, gains: { mic: 1, system: 1 }, muted: { mic: false, system: false } }
-  run(['-v', 'error', ...buildEditedMp4Args(m, whole, dir, out, {}, null)])
+  await exportEdit({ m, e: whole, dir, out, kind: 'mp4', pngs: {}, mask: null, run: execFfmpeg, onProgress: () => undefined })
 
   // Expect: tone 0–1 s, silence 1–2 s, tone 2–3 s.
   const gap = silences(out).find((s) => s.start > 0.8 && s.start < 1.3)

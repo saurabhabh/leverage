@@ -7,7 +7,10 @@ class FakeMedia implements MediaLike {
   paused = true
   volume = 1
   muted = false
+  duration = NaN
   play(): Promise<void> {
+    // Like a real media element: play() on an ended element restarts it from 0.
+    if (Number.isFinite(this.duration) && this.currentTime >= this.duration) this.currentTime = 0
     this.paused = false
     return Promise.resolve()
   }
@@ -148,4 +151,18 @@ test('onTime reports output time on every frame while playing', () => {
   clock += 40
   frame()
   expect(seen.slice(-2)).toEqual([40, 80])
+})
+
+test('a track that ended early stays at its end instead of restarting', () => {
+  mic.duration = 1 // mic stopped (unplugged) 1 s into its own timeline
+  player.setEdit(doc([[0, 10_000]]))
+  player.seek(3000)
+  player.play()
+  for (let i = 0; i < 5; i++) {
+    clock += 100
+    frame()
+  }
+  expect(mic.paused).toBe(true)
+  expect(mic.currentTime).toBeCloseTo(1)
+  expect(screen.paused).toBe(false)
 })

@@ -169,3 +169,28 @@ describe('defaults and repair', () => {
     expect(repairEdit(doc([[0, 2000]]), 5000, fallback).repaired).toBe(false)
   })
 })
+
+describe('review fixes', () => {
+  test('repairEdit gives duplicate clip and overlay ids fresh ones, and replaces unsafe overlay ids', () => {
+    const raw = {
+      ...doc([[0, 1000], [1000, 2000]]),
+      overlays: [
+        { id: 'o', kind: 'blur', srcStartMs: 0, srcEndMs: 500, rect: { x: 0, y: 0, width: 10, height: 10 }, strength: 5 },
+        { id: 'o', kind: 'blur', srcStartMs: 0, srcEndMs: 500, rect: { x: 0, y: 0, width: 10, height: 10 }, strength: 5 },
+        { id: '../x', kind: 'blur', srcStartMs: 0, srcEndMs: 500, rect: { x: 0, y: 0, width: 10, height: 10 }, strength: 5 }
+      ]
+    }
+    raw.clips[1].id = raw.clips[0].id
+    const { edit, repaired } = repairEdit(raw, 5000, doc([[0, 5000]]))
+    expect(repaired).toBe(true)
+    expect(new Set(edit.clips.map((c) => c.id)).size).toBe(2)
+    expect(new Set(edit.overlays.map((o) => o.id)).size).toBe(3)
+    expect(edit.overlays.every((o) => /^[A-Za-z0-9-]+$/.test(o.id))).toBe(true)
+  })
+
+  test('deleteClip never leaves an empty edit, even with duplicate ids', () => {
+    const e = doc([[0, 1000], [1000, 2000]])
+    const dup = { ...e, clips: e.clips.map((c) => ({ ...c, id: 'same' })) }
+    expect(deleteClip(dup, 'same').clips.length).toBeGreaterThan(0)
+  })
+})

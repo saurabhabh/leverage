@@ -1,8 +1,13 @@
 import { describe, test, expect } from 'vitest'
 import { join } from 'path'
-import { buildEditedGifArgs, buildEditedMp4Args } from '../../src/main/media/editExportArgs'
+import {
+  buildConcatGifArgs,
+  buildConcatMp4Args,
+  buildSegmentArgs,
+  planSegments
+} from '../../src/main/media/editExportArgs'
 import type { EditDoc, Overlay } from '../../src/shared/edit'
-import type { RecordingManifest } from '../../src/shared/types'
+import type { Rect, RecordingManifest } from '../../src/shared/types'
 
 const DIR = 'D:\\lib\\rec'
 const MASK = join(DIR, 'overlays', 'mask.png')
@@ -37,135 +42,147 @@ function edit(clips: [number, number][], patch: Partial<EditDoc> = {}): EditDoc 
 
 const filterOf = (args: string[]): string => args[args.indexOf('-filter_complex') + 1]
 const inputs = (args: string[]): string[] => args.filter((_, i) => args[i - 1] === '-i')
-const count = (s: string, needle: string): number => s.split(needle).length - 1
+/** The -ss/-t values given before an input file. */
+const seekOf = (args: string[], file: string): [string, string] | null => {
+  const i = args.indexOf(file)
+  return args[i - 5] === '-ss' ? [args[i - 4], args[i - 2]] : null
+}
 const all = { screen: track('screen.webm'), camera: track('camera.webm', 100), mic: track('mic.webm', 50), system: track('system.webm') }
 const camera = { visible: true, x: 10, y: 20, size: 200 }
+const seg = (
+  m: RecordingManifest,
+  e: EditDoc,
+  i: number,
+  pngs: Record<string, string> = {},
+  mask: string | null = null,
+  audio = true
+): string[] => buildSegmentArgs(m, e, planSegments(e)[i], DIR, `seg${i}.mkv`, pngs, mask, { audio })
 
-describe('buildEditedMp4Args', () => {
-  test('two clips → trim per clip and concat n=2 for each present track', () => {
-    const args = buildEditedMp4Args(manifest(all), edit([[0, 1000], [2000, 3000]], { camera }), DIR, 'o.mp4', {}, MASK)
+describe('planSegments', () => {
+  test('one segment per clip, in output order, with output start times', () => {
+    expect(planSegments(edit([[2000, 3000], [0, 1500]])).map((s) => [s.outStartMs, s.lenMs])).toEqual([
+      [0, 1000],
+      [1000, 1500]
+    ])
+  })
+})
+
+describe('buildSegmentArgs', () => {
+  test('each input seeks straight to the clip (no decoding of skipped video) and the graph has no split/concat', () => {
+    const args = seg(manifest(all), edit([[2000, 3000], [0, 1000]], { camera }), 0, {}, MASK)
+    expect(seekOf(args, join(DIR, 'screen.webm'))).toEqual(['2', '1'])
+    // Camera started 100 ms after the earliest track, so its own clock is 100 ms behind.
+    expect(seekOf(args, join(DIR, 'camera.webm'))).toEqual(['1.9', '1'])
+    expect(seekOf(args, join(DIR, 'mic.webm'))).toEqual(['1.95', '1'])
     const f = filterOf(args)
-    expect(count(f, 'concat=n=2:v=1:a=0')).toBe(2) // screen + camera
-    // Audio is mixed on the source timeline first, then cut once.
-    expect(count(f, 'concat=n=2:v=0:a=1')).toBe(1)
-    expect(f.indexOf('amix')).toBeLessThan(f.indexOf('atrim'))
-    expect(f).toContain('trim=start=0:end=1,setpts=PTS-STARTPTS')
-    expect(f).toContain('trim=start=2:end=3,setpts=PTS-STARTPTS')
-    expect(f).toContain('atrim=start=2:end=3,asetpts=PTS-STARTPTS')
-    expect(args.join(' ')).toContain('-t 2')
+    expect(f).not.toContain('concat=')
+    expect(f).not.toMatch(/split=\d/)
   })
 
-  test('tracks are aligned by padding, not shifting: camera starts 100 ms late, mic 50 ms', () => {
-    const f = filterOf(buildEditedMp4Args(manifest(all), edit([[0, 3000]], { camera }), DIR, 'o.mp4', {}, MASK))
+  test('a track that starts during the clip is padded at the front', () => {
+    const args = seg(manifest(all), edit([[0, 3000]], { camera }), 0, {}, MASK)
+    expect(seekOf(args, join(DIR, 'camera.webm'))).toEqual(['0', '2.9'])
+    const f = filterOf(args)
     expect(f).toContain('tpad=start_duration=0.1:color=black')
     expect(f).toContain('adelay=50:all=1')
     expect(f).toContain('apad=whole_dur=3')
+    expect(f).toContain('trim=duration=3')
   })
 
-  test('reordered clips trim in clip order', () => {
-    const f = filterOf(buildEditedMp4Args(manifest(), edit([[2000, 3000], [0, 1000]]), DIR, 'o.mp4', {}, null))
-    expect(f.indexOf('trim=start=2:end=3')).toBeLessThan(f.indexOf('trim=start=0:end=1'))
+  test('a track that has not started yet during the clip is left out of that segment', () => {
+    const m = manifest({ screen: track('screen.webm'), system: track('system.webm', 2000) })
+    const args = seg(m, edit([[0, 1000]]), 0)
+    expect(inputs(args)).not.toContain(join(DIR, 'system.webm'))
+    // Audio stays present (silence) so every segment has the same streams.
+    expect(filterOf(args)).toContain('anullsrc')
   })
 
-  test('a single clip needs no split or concat', () => {
-    const f = filterOf(buildEditedMp4Args(manifest(), edit([[0, 3000]]), DIR, 'o.mp4', {}, null))
-    expect(f).not.toContain('split=')
-    expect(f).not.toContain('concat=')
+  test('segment output is H.264 at a constant 30 fps with PCM audio in Matroska', () => {
+    const a = seg(manifest(all), edit([[0, 3000]]), 0).join(' ')
+    expect(a).toContain('-c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p')
+    expect(a).toContain('-fps_mode cfr -r 30')
+    expect(a).toContain('-c:a pcm_s16le -ar 48000 -ac 2')
+    expect(a).toContain('-f matroska')
   })
 
-  test('blur fully cut out is not in the graph; partly cut → enable covers only surviving output time', () => {
-    const blur = (id: string, s: number, e: number): Overlay => ({
-      id, kind: 'blur', srcStartMs: s, srcEndMs: e, rect: { x: 10, y: 10, width: 100, height: 50 }, strength: 8
+  test('blur fully cut out is not in the segment; partly → local enable window', () => {
+    const blur = (s: number, e: number): Overlay => ({
+      id: 'b', kind: 'blur', srcStartMs: s, srcEndMs: e, rect: { x: 10, y: 10, width: 100, height: 50 }, strength: 8
     })
-    const cut = buildEditedMp4Args(manifest(), edit([[0, 1000], [2000, 3000]], { overlays: [blur('a', 1200, 1800)] }), DIR, 'o.mp4', {}, null)
-    expect(filterOf(cut)).not.toContain('boxblur')
-    const part = buildEditedMp4Args(manifest(), edit([[0, 1000], [2000, 3000]], { overlays: [blur('a', 500, 2500)] }), DIR, 'o.mp4', {}, null)
-    const f = filterOf(part)
-    expect(f).toContain('crop=100:50:10:10,boxblur=8')
-    expect(f).toContain("enable='between(t,0.5,1)+between(t,1,1.5)'")
+    const e1 = edit([[0, 1000], [2000, 3000]], { overlays: [blur(1200, 1800)] })
+    expect(filterOf(seg(manifest(), e1, 0))).not.toContain('boxblur')
+    expect(filterOf(seg(manifest(), e1, 1))).not.toContain('boxblur')
+    const e2 = edit([[0, 1000], [2000, 3000]], { overlays: [blur(500, 2500)] })
+    expect(filterOf(seg(manifest(), e2, 0))).toContain("enable='between(t,0.5,1)'")
+    // Segment 2 plays source 2000–3000; the blur covers its first half second.
+    expect(filterOf(seg(manifest(), e2, 1))).toContain("enable='between(t,0,0.5)'")
   })
 
-  test('blur rect is clamped inside the frame', () => {
-    const o: Overlay = { id: 'b', kind: 'blur', srcStartMs: 0, srcEndMs: 3000, rect: { x: 1200, y: 700, width: 300, height: 100 }, strength: 5 }
-    const f = filterOf(buildEditedMp4Args(manifest(), edit([[0, 3000]], { overlays: [o] }), DIR, 'o.mp4', {}, null))
-    expect(f).toContain('crop=80:20:1200:700')
+  test('blur rects too thin for a valid chroma radius are skipped; radius fits both planes', () => {
+    const at = (rect: Rect, strength = 10): string =>
+      filterOf(seg(manifest(), edit([[0, 3000]], { overlays: [{ id: 'b', kind: 'blur', srcStartMs: 0, srcEndMs: 3000, rect, strength }] }), 0))
+    expect(at({ x: 10, y: 10, width: 200, height: 2 })).not.toContain('boxblur')
+    expect(at({ x: 1278, y: 10, width: 200, height: 100 })).not.toContain('boxblur')
+    expect(at({ x: 10, y: 10, width: 8, height: 8 }, 20)).toContain('boxblur=2')
+    expect(at({ x: 1200, y: 700, width: 300, height: 100 })).toContain('crop=80:20:1200:700')
   })
 
-  test('callout PNG input appears once with an enable over all its intervals; one with no intervals adds no input', () => {
-    const text = (id: string, s: number, e: number): Overlay => ({
-      id, kind: 'text', srcStartMs: s, srcEndMs: e, rect: { x: 0, y: 0, width: 0, height: 0 }, text: 'Hi', color: '#fff'
-    })
-    const pngs = { shown: join(DIR, 'overlays', 'shown.png'), gone: join(DIR, 'overlays', 'gone.png') }
-    const args = buildEditedMp4Args(
-      manifest(),
-      edit([[0, 1000], [2000, 3000]], { overlays: [text('shown', 500, 2500), text('gone', 1200, 1800)] }),
-      DIR,
-      'o.mp4',
-      pngs,
-      null
-    )
-    expect(inputs(args).filter((i) => i.endsWith('.png'))).toEqual([pngs.shown])
-    expect(filterOf(args)).toContain("overlay=0:0:enable='between(t,0.5,1)+between(t,1,1.5)'")
+  test('callout PNG is an input only in segments where it shows; missing PNGs are skipped', () => {
+    const text: Overlay = { id: 't', kind: 'text', srcStartMs: 500, srcEndMs: 900, rect: { x: 0, y: 0, width: 0, height: 0 }, text: 'Hi', color: '#fff' }
+    const pngs = { t: join(DIR, 'overlays', 't.png') }
+    const e = edit([[0, 1000], [2000, 3000]], { overlays: [text] })
+    expect(inputs(seg(manifest(), e, 0, pngs))).toContain(pngs.t)
+    expect(filterOf(seg(manifest(), e, 0, pngs))).toContain("overlay=0:0:enable='between(t,0.5,0.9)'")
+    expect(inputs(seg(manifest(), e, 1, pngs))).not.toContain(pngs.t)
+    expect(inputs(seg(manifest(), e, 0, {}))).toEqual([join(DIR, 'screen.webm')])
   })
 
-  test('a callout without a rendered PNG is skipped rather than failing', () => {
-    const o: Overlay = { id: 'x', kind: 'box', srcStartMs: 0, srcEndMs: 1000, rect: { x: 0, y: 0, width: 10, height: 10 }, text: '', color: '#fff' }
-    const args = buildEditedMp4Args(manifest(), edit([[0, 3000]], { overlays: [o] }), DIR, 'o.mp4', {}, null)
-    expect(inputs(args)).toEqual([join(DIR, 'screen.webm')])
+  test('muted tracks are left out; gains apply; mic+system are mixed', () => {
+    const muted = seg(manifest(all), edit([[0, 3000]], { muted: { mic: true, system: false }, gains: { mic: 1, system: 1.5 } }), 0)
+    expect(inputs(muted)).not.toContain(join(DIR, 'mic.webm'))
+    expect(filterOf(muted)).toContain('volume=1.5')
+    expect(filterOf(seg(manifest(all), edit([[0, 3000]]), 0))).toContain('amix=inputs=2:normalize=0:duration=longest')
   })
 
-  test('muted mic is not mixed; gains apply to the rest', () => {
-    const args = buildEditedMp4Args(
-      manifest(all),
-      edit([[0, 3000]], { muted: { mic: true, system: false }, gains: { mic: 1, system: 1.5 } }),
-      DIR,
-      'o.mp4',
-      {},
-      null
-    )
-    expect(inputs(args)).not.toContain(join(DIR, 'mic.webm'))
-    expect(filterOf(args)).toContain('volume=1.5')
-    expect(filterOf(args)).not.toContain('amix')
+  test('everything muted → segments without audio', () => {
+    expect(seg(manifest(all), edit([[0, 3000]], { muted: { mic: true, system: true } }), 0)).toContain('-an')
   })
 
-  test('everything muted → no audio', () => {
-    const args = buildEditedMp4Args(manifest(all), edit([[0, 3000]], { muted: { mic: true, system: true } }), DIR, 'o.mp4', {}, null)
-    expect(args).toContain('-an')
-  })
-
-  test('camera: circle via mask + alphamerge at its position; hidden or missing → no camera input', () => {
-    const shown = buildEditedMp4Args(manifest(all), edit([[0, 3000]], { camera }), DIR, 'o.mp4', {}, MASK)
-    expect(inputs(shown)).toContain(join(DIR, 'camera.webm'))
+  test('camera: circle via mask + alphamerge at its position; hidden or missing → no camera', () => {
+    const shown = seg(manifest(all), edit([[0, 3000]], { camera }), 0, {}, MASK)
     expect(inputs(shown)).toContain(MASK)
     expect(filterOf(shown)).toContain('alphamerge')
     expect(filterOf(shown)).toContain('overlay=10:20')
     expect(filterOf(shown)).not.toContain('geq')
-    const hidden = buildEditedMp4Args(manifest(all), edit([[0, 3000]], { camera: { ...camera, visible: false } }), DIR, 'o.mp4', {}, MASK)
-    expect(inputs(hidden)).not.toContain(join(DIR, 'camera.webm'))
-    const noTrack = buildEditedMp4Args(manifest(), edit([[0, 3000]], { camera }), DIR, 'o.mp4', {}, MASK)
-    expect(inputs(noTrack)).not.toContain(join(DIR, 'camera.webm'))
+    expect(inputs(seg(manifest(all), edit([[0, 3000]], { camera: { ...camera, visible: false } }), 0, {}, MASK))).not.toContain(
+      join(DIR, 'camera.webm')
+    )
+    expect(inputs(seg(manifest(), edit([[0, 3000]], { camera }), 0, {}, MASK))).not.toContain(join(DIR, 'camera.webm'))
   })
 
-  test('50 clips build and the graph has exactly 50 trims per present track', () => {
-    const clips: [number, number][] = Array.from({ length: 50 }, (_, i) => [i * 60, i * 60 + 50 + 100])
-    const f = filterOf(buildEditedMp4Args(manifest({ screen: track('screen.webm'), mic: track('mic.webm') }), edit(clips), DIR, 'o.mp4', {}, null))
-    expect(count(f, '[0:v]') + count(f, ']trim=')).toBeGreaterThan(0)
-    expect(count(f, ',setpts=PTS-STARTPTS')).toBe(50)
-    expect(count(f, ',asetpts=PTS-STARTPTS')).toBe(50) // one mixed audio stream
+  test('GIF segments carry no audio', () => {
+    const args = seg(manifest(all), edit([[0, 3000]]), 0, {}, null, false)
+    expect(inputs(args)).not.toContain(join(DIR, 'mic.webm'))
+    expect(args).toContain('-an')
   })
 
   test('no screen track cannot be exported', () => {
-    expect(() => buildEditedMp4Args(manifest({}), edit([[0, 1000]]), DIR, 'o.mp4', {}, null)).toThrow(/screen/i)
+    expect(() => seg(manifest({}), edit([[0, 1000]]), 0)).toThrow(/screen/i)
   })
 })
 
-describe('buildEditedGifArgs', () => {
-  test('applies the same cuts, then the 15 fps palette chain, without audio', () => {
-    const args = buildEditedGifArgs(manifest(all), edit([[0, 1000], [2000, 3000]]), DIR, 'o.gif', {}, null, { fps: 15, width: 640 })
-    const f = filterOf(args)
-    expect(f).toContain('concat=n=2:v=1:a=0')
+describe('final join', () => {
+  test('MP4: concat the segments, copy video, encode audio once', () => {
+    const a = buildConcatMp4Args('list.txt', 'out.mp4', true).join(' ')
+    expect(a).toContain('-f concat -safe 0 -i list.txt')
+    expect(a).toContain('-c:v copy -c:a aac -b:a 192k')
+    expect(a).toContain('-movflags +faststart -n out.mp4')
+    expect(buildConcatMp4Args('list.txt', 'out.mp4', false)).toContain('-an')
+  })
+
+  test('GIF: concat then the 15 fps palette chain', () => {
+    const f = filterOf(buildConcatGifArgs('list.txt', 'o.gif', { fps: 15, width: 640 }))
     expect(f).toContain('fps=15,scale=640:-1:flags=lanczos')
     expect(f).toContain('palettegen=stats_mode=full')
-    expect(inputs(args)).not.toContain(join(DIR, 'mic.webm'))
   })
 })

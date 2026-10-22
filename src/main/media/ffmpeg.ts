@@ -1,6 +1,5 @@
 import { spawn } from 'child_process'
 import ffmpegStatic from 'ffmpeg-static'
-import { parseFfmpegProgress } from './exportArgs'
 
 /** ffmpeg-static resolves inside app.asar when packaged; the binary itself is unpacked beside it. */
 export const ffmpegPath = (): string => {
@@ -35,12 +34,3 @@ export function execFfmpeg(args: string[], onStdoutLine?: (line: string) => void
 /** Stream-copy a WebM so it gets a duration and seek cues. */
 export const remuxCopy = (inFile: string, outFile: string): Promise<void> =>
   execFfmpeg(['-hide_banner', '-loglevel', 'error', '-i', inFile, '-c', 'copy', '-n', outFile])
-
-/** Run an export, reporting 0–100 progress from ffmpeg's `-progress pipe:1` output. */
-export function runFfmpeg(args: string[], totalMs: number, onProgress: (pct: number) => void): Promise<void> {
-  const withProgress = [...args.slice(0, -1), '-progress', 'pipe:1', '-nostats', args[args.length - 1]]
-  return execFfmpeg(withProgress, (line) => {
-    const pct = parseFfmpegProgress(line, totalMs)
-    if (pct !== null) onProgress(pct)
-  })
-}

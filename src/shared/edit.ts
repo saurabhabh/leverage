@@ -59,6 +59,7 @@ export type CameraSettings = z.infer<typeof CameraSettingsSchema>
 export type EditDoc = z.infer<typeof EditDocSchema>
 
 export const newId = (): string => globalThis.crypto.randomUUID()
+const SAFE_ID = /^[A-Za-z0-9-]+$/
 
 const len = (c: Clip): number => c.srcEndMs - c.srcStartMs
 
@@ -142,8 +143,9 @@ export function splitAt(e: EditDoc, outMs: number): EditDoc {
 }
 
 export function deleteClip(e: EditDoc, clipId: string): EditDoc {
-  if (e.clips.length <= 1 || !e.clips.some((c) => c.id === clipId)) return e
-  return { ...e, clips: e.clips.filter((c) => c.id !== clipId) }
+  const clips = e.clips.filter((c) => c.id !== clipId)
+  if (clips.length === 0 || clips.length === e.clips.length) return e
+  return { ...e, clips }
 }
 
 export function cutRange(e: EditDoc, outStartMs: number, outEndMs: number): EditDoc {
@@ -228,5 +230,17 @@ export function repairEdit(raw: unknown, sourceMs: number, fallback: EditDoc): {
     return ok
   })
   if (clips.length === 0) return { edit: fallback, repaired: true }
-  return { edit: repaired ? { ...e, clips, overlays } : e, repaired }
+  // Ids must be unique (selection, delete) and file-safe (overlay PNG names).
+  const seen = new Set<string>()
+  const unique = <T extends { id: string }>(x: T): T => {
+    if (seen.has(x.id) || !SAFE_ID.test(x.id)) {
+      repaired = true
+      x = { ...x, id: newId() }
+    }
+    seen.add(x.id)
+    return x
+  }
+  const fixedClips = clips.map(unique)
+  const fixedOverlays = overlays.map(unique)
+  return { edit: repaired ? { ...e, clips: fixedClips, overlays: fixedOverlays } : e, repaired }
 }

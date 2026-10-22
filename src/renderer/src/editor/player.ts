@@ -6,6 +6,8 @@ export type MediaLike = {
   paused: boolean
   volume: number
   muted: boolean
+  /** Seconds; NaN/Infinity while unknown. */
+  duration: number
   play(): Promise<void>
   pause(): void
 }
@@ -20,6 +22,15 @@ type Deps = {
 }
 
 const DRIFT_MS = 150
+
+/** A track that stopped early (e.g. camera unplugged) must not be played again: play() would restart it at 0. */
+const pastEnd = (m: MediaLike, localMs: number): boolean =>
+  Number.isFinite(m.duration) && localMs / 1000 >= m.duration - 0.02
+
+function parkAtEnd(m: MediaLike): void {
+  if (!m.paused) m.pause()
+  if (m.currentTime < m.duration) m.currentTime = m.duration
+}
 
 /**
  * Plays an edit by steering one media element per track along the clip list. A wall-clock master
@@ -115,6 +126,10 @@ export class PlaybackController {
         m.currentTime = 0
         continue
       }
+      if (pastEnd(m, local)) {
+        parkAtEnd(m)
+        continue
+      }
       m.currentTime = local / 1000
       if (this.isPlaying) void m.play().catch(() => undefined)
       else m.pause()
@@ -127,6 +142,10 @@ export class PlaybackController {
       const local = srcMs - (this.deps.offsetsMs[track] ?? 0)
       if (local < 0) {
         if (!m.paused) m.pause()
+        continue
+      }
+      if (pastEnd(m, local)) {
+        parkAtEnd(m)
         continue
       }
       if (m.paused) {

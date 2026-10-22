@@ -88,18 +88,33 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
     }
   }, [recordingId])
 
-  // Autosave (debounced) whenever the edit changes.
+  // Autosave: debounced while editing, and flushed at once when leaving or exporting.
+  const latest = useRef<EditDoc | null>(null)
+  const flush = useCallback((): Promise<void> => {
+    const e = latest.current
+    if (!e || e === saved.current) return Promise.resolve()
+    saved.current = e
+    return window.leverage['edit:save'](recordingId, e).then(
+      () => setSaveError(null),
+      (err) => setSaveError(err instanceof Error ? err.message : String(err))
+    )
+  }, [recordingId])
+
   useEffect(() => {
+    latest.current = edit
     if (!edit || edit === saved.current) return
-    const t = window.setTimeout(() => {
-      saved.current = edit
-      window.leverage['edit:save'](recordingId, edit).then(
-        () => setSaveError(null),
-        (err) => setSaveError(err instanceof Error ? err.message : String(err))
-      )
-    }, AUTOSAVE_MS)
+    const t = window.setTimeout(() => void flush(), AUTOSAVE_MS)
     return () => window.clearTimeout(t)
-  }, [edit, recordingId])
+  }, [edit, flush])
+
+  useEffect(() => {
+    const onClose = (): void => void flush()
+    window.addEventListener('beforeunload', onClose)
+    return () => {
+      window.removeEventListener('beforeunload', onClose)
+      void flush()
+    }
+  }, [flush])
 
   const frame: Size | null = useMemo(() => {
     if (!opened) return null
@@ -213,8 +228,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
     setExporting({ pct: 0 })
     try {
       // Save now rather than waiting for the autosave, so the export has the latest edit.
-      saved.current = edit
-      await window.leverage['edit:save'](recordingId, edit)
+      await flush()
       const out = await exportRecording(recordingId, kind)
       setExporting(out ? { done: out } : null)
     } catch (err) {
@@ -248,7 +262,8 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
     if (tool === 'text') o = { id, kind: 'text', ...span, rect: { x: rect.x, y: rect.y, width: 0, height: 0 }, text: 'Text', color: SWATCHES[0] }
     else {
       const r = tool === 'arrow' ? rect : normalize(rect)
-      if (Math.abs(r.width) < 8 && Math.abs(r.height) < 8) return
+      // Blur and box need some area; an arrow just needs some length.
+      if (tool === 'arrow' ? Math.hypot(r.width, r.height) < 8 : Math.abs(r.width) < 8 || Math.abs(r.height) < 8) return
       o =
         tool === 'blur'
           ? { id, kind: 'blur', ...span, rect: r, strength: 10 }

@@ -5,7 +5,8 @@ import ffmpeg from 'ffmpeg-static'
 import ffprobe from 'ffprobe-static'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { buildEditedMp4Args } from '../../src/main/media/editExportArgs'
+import { exportEdit } from '../../src/main/media/editExport'
+import { execFfmpeg } from '../../src/main/media/ffmpeg'
 import type { EditDoc } from '../../src/shared/edit'
 import type { RecordingManifest } from '../../src/shared/types'
 
@@ -20,7 +21,7 @@ function silences(file: string): { start: number; end: number }[] {
   return starts.map((s, i) => ({ start: s, end: ends[i] ?? Infinity }))
 }
 
-test('reordered clips play the right audio at the right output time', () => {
+test('reordered clips play the right audio at the right output time', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'lev-editreal-'))
   // Live-mode WebM, like real recordings: no stored duration.
   const live = (name: string, input: string[], codec: string[]): void =>
@@ -57,7 +58,7 @@ test('reordered clips play the right audio at the right output time', () => {
     muted: { mic: false, system: false }
   }
   const out = join(dir, 'out.mp4')
-  run(['-v', 'error', ...buildEditedMp4Args(m, e, dir, out, {}, null)])
+  await exportEdit({ m, e, dir, out, kind: 'mp4', pngs: {}, mask: null, run: execFfmpeg, onProgress: () => undefined })
 
   const duration = Number(
     execFileSync(ffprobe.path, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', out]).toString()

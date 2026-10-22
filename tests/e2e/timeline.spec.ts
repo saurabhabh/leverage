@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { openEditor } from './editorHelpers'
 
 const clips = (page: Page) => page.getByTestId('clip')
@@ -86,5 +88,23 @@ test('zoom controls change the clip width', async () => {
   expect(await width()).toBeGreaterThan(fit)
   await page.getByRole('button', { name: 'Fit' }).click()
   expect(Math.abs((await width()) - fit)).toBeLessThan(2)
+  await app.close()
+})
+
+test('leaving the editor right after a change still saves it', async () => {
+  const { app, page, dir } = await openEditor()
+  await seekTo(page, 1000)
+  await page.keyboard.press('s')
+  // No pause for the 500 ms autosave: leave immediately.
+  await page.getByRole('button', { name: '← Library' }).click()
+  await expect
+    .poll(() => {
+      try {
+        return JSON.parse(readFileSync(join(dir, 'edit.json'), 'utf8')).clips.length
+      } catch {
+        return 0
+      }
+    })
+    .toBe(2)
   await app.close()
 })

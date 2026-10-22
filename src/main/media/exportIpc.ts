@@ -3,13 +3,12 @@ import { existsSync } from 'fs'
 import { basename, dirname, extname, join } from 'path'
 import { broadcast, handle } from '../ipc'
 import { libraryStore } from '../recording/ipc'
-import { outputDurationMs } from '../../shared/edit'
 import { loadEdit } from '../edit/store'
-import { buildEditedGifArgs, buildEditedMp4Args, pngOverlays } from './editExportArgs'
-import { frameSize } from './exportArgs'
+import { pngOverlays } from './editExportArgs'
+import { exportEdit } from './editExport'
 import { ensureCircleMask } from './mask'
 import { probeSourceMs } from './probe'
-import { runFfmpeg } from './ffmpeg'
+import { execFfmpeg } from './ffmpeg'
 
 /** Never overwrite: `name.mp4` → `name (2).mp4` → … */
 export function uniqueFile(path: string): string {
@@ -58,12 +57,18 @@ async function exportRecording(
     if (existsSync(png)) pngs[o.id] = png
   }
   const mask = edit.camera?.visible && manifest.tracks.camera ? await ensureCircleMask(dir) : null
-  const args =
-    kind === 'mp4'
-      ? buildEditedMp4Args(manifest, edit, dir, out, pngs, mask)
-      : buildEditedGifArgs(manifest, edit, dir, out, pngs, mask, { fps: 15, width: Math.min(960, frameSize(manifest).width) })
   broadcast('export:progress', { id, pct: 0 })
-  await runFfmpeg(args, outputDurationMs(edit), (pct) => broadcast('export:progress', { id, pct }))
+  await exportEdit({
+    m: manifest,
+    e: edit,
+    dir,
+    out,
+    kind,
+    pngs,
+    mask,
+    run: execFfmpeg,
+    onProgress: (pct) => broadcast('export:progress', { id, pct })
+  })
   broadcast('export:progress', { id, pct: 100 })
   return out
 }

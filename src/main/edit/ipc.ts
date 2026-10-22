@@ -19,6 +19,7 @@ export function registerMediaScheme(): void {
 
 /** id → recording folder, so media requests (many per second while seeking) don't rescan the library. */
 const dirs = new Map<string, { dir: string; manifest: RecordingManifest }>()
+const saving = new Map<string, Promise<void>>()
 
 async function recording(id: string): Promise<{ dir: string; manifest: RecordingManifest }> {
   const cached = dirs.get(id)
@@ -50,7 +51,13 @@ export function registerEditIpc(): void {
     const loaded = await loadEdit(dir, manifest, () => probeSourceMs(dir, manifest))
     return { manifest, dir, ...loaded }
   })
-  handle('edit:save', async (_e, id, edit) => saveEdit((await recording(id)).dir, edit))
+  handle('edit:save', async (_e, id, edit) => {
+    const { dir } = await recording(id)
+    // One save at a time per recording, so two writers never share edit.json.tmp.
+    const next = (saving.get(dir) ?? Promise.resolve()).catch(() => undefined).then(() => saveEdit(dir, edit))
+    saving.set(dir, next)
+    return next
+  })
   handle('edit:overlayPng', async (_e, id, overlayId, data) => {
     await writeOverlayPng((await recording(id)).dir, overlayId, new Uint8Array(data))
   })
