@@ -37,12 +37,6 @@ export default function Inspector({ edit, overlay: o, onChange, onDelete }: Prop
           <input aria-label="Text" value={o.text} onChange={(e) => onChange({ text: e.target.value })} />
         </label>
       )}
-      {(o.kind === 'arrow' || o.kind === 'box') && (
-        <label className="field">
-          <span>Label (optional)</span>
-          <input aria-label="Label" value={o.text} onChange={(e) => onChange({ text: e.target.value })} />
-        </label>
-      )}
       {o.kind === 'lowerThird' && (
         <>
           <label className="field">

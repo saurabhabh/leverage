@@ -370,3 +370,60 @@
   width: 6px;
   cursor: ew-resize;
 }
+
+.camera-hit {
+  position: absolute;
+  border-radius: 50%;
+  cursor: move;
+  border: 2px dashed transparent;
+}
+
+.camera-hit:hover,
+.camera-hit.dragging {
+  border-color: #ffd60a;
+}
+
+.camera-hit .overlay-handle {
+  right: 8%;
+  bottom: 8%;
+}
+
+.row-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.audio-lanes {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.audio-lane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.audio-lane.muted .audio-name {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.audio-name {
+  min-width: 80px;
+  font-weight: 600;
+}
+
+.audio-lane input[type='range'] {
+  width: 140px;
+  accent-color: var(--accent);
+}
+
+.audio-level {
+  min-width: 36px;
+  font-variant-numeric: tabular-nums;
+}

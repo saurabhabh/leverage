@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
-import type { BlurOverlay, Overlay } from '../../../shared/edit'
+import type { BlurOverlay, CameraSettings, Overlay } from '../../../shared/edit'
 import type { Rect, Size } from '../../../shared/types'
-import { isVisibleAt, normalize, overlayBox, type Tool } from './overlayGeometry'
+import { clampCamera, isVisibleAt, normalize, overlayBox, type Tool } from './overlayGeometry'
 
 type Drag =
   | { mode: 'create'; from: { x: number; y: number }; rect: Rect }
   | { mode: 'move' | 'resize'; id: string; from: { x: number; y: number }; orig: Rect; rect: Rect }
+  | { mode: 'camera-move' | 'camera-resize'; from: { x: number; y: number }; orig: Rect; rect: Rect }
 
 /** Blur previews. Rendered under the callout canvas, like the export (blur first, then callouts). */
 export function BlurLayer({ overlays, srcMs, scale }: { overlays: Overlay[]; srcMs: number; scale: number }): React.JSX.Element {
@@ -44,6 +45,9 @@ type Props = {
   onCreate: (rect: Rect) => void
   onSelect: (id: string | null) => void
   onRect: (id: string, rect: Rect) => void
+  /** Present only when the recording has a camera track. */
+  camera?: CameraSettings | null
+  onCamera?: (c: { x: number; y: number; size: number }) => void
 }
 
 /**
@@ -68,15 +72,23 @@ export default function OverlayLayer(p: Props): React.JSX.Element {
     const dx = at.x - drag.from.x
     const dy = at.y - drag.from.y
     if (drag.mode === 'create') setDrag({ ...drag, rect: { x: drag.from.x, y: drag.from.y, width: dx, height: dy } })
+    else if (drag.mode === 'camera-move') setDrag({ ...drag, rect: { ...drag.orig, x: drag.orig.x + dx, y: drag.orig.y + dy } })
+    else if (drag.mode === 'camera-resize') {
+      const size = drag.orig.width + Math.max(dx, dy)
+      setDrag({ ...drag, rect: { ...drag.orig, width: size, height: size } })
+    }
     else if (drag.mode === 'move') setDrag({ ...drag, rect: { ...drag.orig, x: drag.orig.x + dx, y: drag.orig.y + dy } })
     else setDrag({ ...drag, rect: { ...drag.orig, width: drag.orig.width + dx, height: drag.orig.height + dy } })
   }
 
   const onUp = (): void => {
     if (!drag) return
-    if (drag.mode === 'create') p.onCreate(drag.rect)
-    else if (drag.rect !== drag.orig) p.onRect(drag.id, drag.rect)
     setDrag(null)
+    if (drag.mode === 'create') return p.onCreate(drag.rect)
+    if (drag.rect === drag.orig) return
+    if (drag.mode === 'camera-move' || drag.mode === 'camera-resize')
+      p.onCamera?.(clampCamera({ x: drag.rect.x, y: drag.rect.y, size: drag.rect.width }, p.frame))
+    else if (drag.mode === 'move' || drag.mode === 'resize') p.onRect(drag.id, drag.rect)
   }
 
   const visible = p.overlays.filter((o) => isVisibleAt(o, p.srcMs))
@@ -97,9 +109,38 @@ export default function OverlayLayer(p: Props): React.JSX.Element {
       onPointerMove={onMove}
       onPointerUp={onUp}
     >
+      {!p.tool && p.camera?.visible && (() => {
+        const live = drag && (drag.mode === 'camera-move' || drag.mode === 'camera-resize')
+        const c = live ? clampCamera({ x: drag.rect.x, y: drag.rect.y, size: drag.rect.width }, p.frame) : p.camera
+        const orig = { x: p.camera.x, y: p.camera.y, width: p.camera.size, height: p.camera.size }
+        return (
+          <div
+            className={live ? 'camera-hit dragging' : 'camera-hit'}
+            data-testid="camera-hit"
+            title="Drag to move the camera"
+            style={{ left: c.x * s, top: c.y * s, width: c.size * s, height: c.size * s }}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              p.onSelect(null)
+              e.currentTarget.parentElement!.setPointerCapture(e.pointerId)
+              setDrag({ mode: 'camera-move', from: toFrame(e), orig, rect: orig })
+            }}
+          >
+            <span
+              className="overlay-handle"
+              aria-label="Resize camera"
+              onPointerDown={(e) => {
+                e.stopPropagation()
+                e.currentTarget.parentElement!.parentElement!.setPointerCapture(e.pointerId)
+                setDrag({ mode: 'camera-resize', from: toFrame(e), orig, rect: orig })
+              }}
+            />
+          </div>
+        )
+      })()}
       {!p.tool &&
         visible.map((o) => {
-          const editing = drag && drag.mode !== 'create' && drag.id === o.id
+          const editing = drag && (drag.mode === 'move' || drag.mode === 'resize') && drag.id === o.id
           // Move/resize work on the stored rect; text and lower-thirds only move (their size follows the text).
           const box = editing ? normalize(drag.rect) : overlayBox(o, p.frame)
           const selected = o.id === p.selectedId

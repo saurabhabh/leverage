@@ -9,6 +9,9 @@ import {
   outputToSource,
   relativeOffsets,
   removeOverlay,
+  setCamera,
+  setGain,
+  setMuted,
   splitAt,
   updateOverlay,
   type EditDoc,
@@ -17,6 +20,8 @@ import {
 import type { Rect } from '../../../shared/types'
 import { drawOverlay } from './drawOverlay'
 import Inspector from './Inspector'
+import CameraPanel from './CameraPanel'
+import AudioLanes from './AudioLanes'
 import OverlayLane from './OverlayLane'
 import OverlayLayer, { BlurLayer } from './OverlayLayer'
 import { isVisibleAt, newSpan, normalize, SWATCHES, type Tool } from './overlayGeometry'
@@ -309,9 +314,14 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
                   onCreate={createOverlay}
                   onSelect={(id) => setSelection(id ? { kind: 'overlay', id } : null)}
                   onRect={(id, rect) => commit(updateOverlay(edit, id, { rect } as Partial<Overlay>))}
+                  camera={urls.camera ? edit.camera : null}
+                  onCamera={(c) => commit(setCamera(edit, c))}
                 />
               )}
             />
+            {!selectedOverlay && urls.camera && edit.camera && (
+              <CameraPanel camera={edit.camera} frame={frame} onChange={(patch) => commit(setCamera(edit, patch))} />
+            )}
             {selectedOverlay && (
               <Inspector
                 edit={edit}
@@ -353,6 +363,7 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
             onMoveClip={(id, to) => commit(moveClip(edit, id, to))}
             onZoom={setZoom}
             lanes={(msPerPx) => (
+              <>
               <OverlayLane
                 edit={edit}
                 msPerPx={msPerPx}
@@ -360,7 +371,14 @@ export default function Editor({ recordingId, onBack }: Props): React.JSX.Elemen
                 onSelect={(id) => setSelection({ kind: 'overlay', id })}
                 onSpan={(id, srcStartMs, srcEndMs) => commit(updateOverlay(edit, id, { srcStartMs, srcEndMs }))}
               />
+              </>
             )}
+          />
+          <AudioLanes
+            edit={edit}
+            tracks={(['mic', 'system'] as const).filter((t) => urls[t])}
+            onMuted={(t, m) => commit(setMuted(edit, t, m))}
+            onGain={(t, g) => commit(setGain(edit, t, g))}
           />
         </>
       )}

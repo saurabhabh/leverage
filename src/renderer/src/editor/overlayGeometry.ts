@@ -42,3 +42,16 @@ export function newSpan(e: EditDoc, outMs: number): { srcStartMs: number; srcEnd
 }
 
 export const isVisibleAt = (o: Overlay, srcMs: number): boolean => srcMs >= o.srcStartMs && srcMs < o.srcEndMs
+
+/** Camera size presets as a share of the frame width. */
+export const CAMERA_PRESETS = { S: 0.12, M: 0.2, L: 0.3 } as const
+
+/** Keep the camera circle whole and inside the frame (same rule as export). */
+export function clampCamera(c: { x: number; y: number; size: number }, frame: Size): { x: number; y: number; size: number } {
+  const size = Math.max(32, Math.min(Math.round(c.size), frame.width, frame.height))
+  return {
+    size,
+    x: Math.round(Math.min(Math.max(0, c.x), frame.width - size)),
+    y: Math.round(Math.min(Math.max(0, c.y), frame.height - size))
+  }
+}
