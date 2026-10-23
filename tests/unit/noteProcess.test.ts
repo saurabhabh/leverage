@@ -22,7 +22,7 @@ beforeEach(() => {
   deps = {
     store,
     transcribe: async () => 'we agreed to ship on friday',
-    summarize: async () => '{"summary":"## Summary\\nShip Friday."}',
+    summarize: async () => '## Summary\nShip Friday.',
     noSummaryReason: 'Add a Groq key',
     changed: (id) => void changed.push(id)
   }
@@ -106,7 +106,7 @@ test('nothing said → no summary call', async () => {
 
 test('nothing of substance → a short note instead of an invented summary', async () => {
   const { id } = await meeting()
-  const done = await processNote(id, { ...deps, summarize: async () => '{"nothing":true}' })
+  const done = await processNote(id, { ...deps, summarize: async () => 'NOTHING_TO_SUMMARIZE' })
   expect(done.summary).toMatch(/nothing to summarise/i)
 })
 

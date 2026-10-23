@@ -35,23 +35,33 @@ export async function providerFetch(
 }
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
+export type ReasoningEffort = 'low' | 'medium' | 'high'
 
 /** Overridable for tests only. */
 export const groqBase = (): string => process.env['LEVERAGE_GROQ_URL'] ?? 'https://api.groq.com/openai/v1'
 export const openrouterBase = (): string => process.env['LEVERAGE_OPENROUTER_URL'] ?? 'https://openrouter.ai/api/v1'
 
+export type ChatOptions = {
+  /** JSON mode (the default). Turn it off for long free-form text: the provider rejects a whole reply
+   *  when the model slips on escaping inside the JSON string. */
+  json?: boolean
+  /** How hard a reasoning model thinks; only Groq's gpt-oss models take it, others ignore it. */
+  reasoningEffort?: ReasoningEffort
+  fetchImpl?: typeof fetch
+  base?: string
+  signal?: AbortSignal
+}
+
 /**
- * One OpenAI-compatible chat completion asking for a JSON object. Groq and OpenRouter share the API;
- * only the base URL and OpenRouter's attribution headers differ.
+ * One OpenAI-compatible chat completion, asking for a JSON object unless `json` is false. Groq and
+ * OpenRouter share the API; only the base URL and OpenRouter's attribution headers differ.
  */
 export async function chat(
   provider: 'groq' | 'openrouter',
   key: string,
   model: string,
   messages: ChatMessage[],
-  fetchImpl: typeof fetch = fetch,
-  base?: string,
-  signal?: AbortSignal
+  { json = true, reasoningEffort, fetchImpl = fetch, base, signal }: ChatOptions = {}
 ): Promise<string> {
   const name: ProviderName = provider === 'groq' ? 'Groq' : 'OpenRouter'
   const url = `${base ?? (provider === 'groq' ? groqBase() : openrouterBase())}/chat/completions`
@@ -63,7 +73,15 @@ export async function chat(
   const res = await providerFetch(name, fetchImpl, url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ model, messages, temperature: 0.2, response_format: { type: 'json_object' } }),
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.2,
+      ...(json ? { response_format: { type: 'json_object' } } : {}),
+      ...(reasoningEffort && provider === 'groq' && model.startsWith('openai/gpt-oss')
+        ? { reasoning_effort: reasoningEffort }
+        : {})
+    }),
     signal
   })
   const body = (await res.json()) as { choices?: { message?: { content?: string } }[] }

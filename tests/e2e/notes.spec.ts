@@ -112,7 +112,7 @@ test('AI summary from a mock Groq: sections render, Regenerate works, only text 
       res.setHeader('content-type', 'application/json')
       const md = '## Summary\nShip Friday.\n## Action items\n- [ ] Send the deck — Asha'
       res.end(
-        JSON.stringify({ choices: [{ message: { content: JSON.stringify({ summary: md }) } }] })
+        JSON.stringify({ choices: [{ message: { content: md } }] })
       )
     })
   })
@@ -130,6 +130,8 @@ test('AI summary from a mock Groq: sections render, Regenerate works, only text 
   await note.getByRole('button', { name: 'Regenerate' }).click()
   await expect.poll(() => bodies.length).toBe(2)
   expect(bodies[0]).toContain('We agreed to ship on Friday.')
+  // Notes come back as plain Markdown: JSON mode made long notes fail Groq's JSON check.
+  expect(JSON.parse(bodies[0])).not.toHaveProperty('response_format')
   await app.close()
   server.close()
 })

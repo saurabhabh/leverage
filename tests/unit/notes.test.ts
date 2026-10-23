@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { NotesStore } from '../../src/main/listen/notes'
-import { buildSummaryPrompt, parseSummary, wordsToText } from '../../src/main/listen/summary'
+import { buildSummaryPrompt, parseSummary, summaryDetail, wordsToText } from '../../src/main/listen/summary'
 
 let root: string
 let trashed: string[]
@@ -121,12 +121,45 @@ describe('summary', () => {
     expect(user).toContain('<my_notes>\nask about budget\n</my_notes>')
   })
 
-  test('parseSummary: markdown, nothing to summarise, or an error', () => {
-    expect(parseSummary('{"summary":"## Summary\\nShip it."}')).toEqual({
-      summary: '## Summary\nShip it.'
-    })
-    expect(parseSummary('{"nothing":true}')).toEqual({ nothing: true })
-    expect(parseSummary('{"summary":"   "}')).toEqual({ nothing: true })
-    expect(parseSummary('oops')).toMatchObject({ error: expect.any(String) })
+  test('buildSummaryPrompt asks for topic sections and open questions', () => {
+    const { system } = buildSummaryPrompt({ title: 'Sync', transcript: 'we agreed to ship', notes: '' })
+    expect(system).toContain('## Topics')
+    expect(system).toMatch(/### /)
+    expect(system).toContain('## Open questions')
+    expect(system).toContain('## Decisions')
+  })
+
+  test('summaryDetail grows with the length of the meeting', () => {
+    const words = (n: number): string => Array(n).fill('word').join(' ')
+    expect(summaryDetail(words(800))).toBe('brief')
+    expect(summaryDetail(words(3000))).toBe('standard')
+    expect(summaryDetail(words(9000))).toBe('detailed')
+  })
+
+  test('a long meeting gets a longer summary and more per topic than a short one', () => {
+    const short = buildSummaryPrompt({ title: 'S', transcript: 'quick check in', notes: '' }).system
+    const long = buildSummaryPrompt({
+      title: 'L',
+      transcript: Array(9000).fill('word').join(' '),
+      notes: ''
+    }).system
+    expect(short).not.toEqual(long)
+    expect(short).toMatch(/2 to 3 sentences/)
+    expect(long).toMatch(/two short paragraphs/)
+  })
+
+  test('parseSummary: plain markdown notes, or nothing to summarise', () => {
+    expect(parseSummary('## Summary\nShip it.\n')).toEqual({ summary: '## Summary\nShip it.' })
+    // A model that wraps its notes in a code fence anyway.
+    expect(parseSummary('```markdown\n## Summary\nShip it.\n```')).toEqual({ summary: '## Summary\nShip it.' })
+    expect(parseSummary('NOTHING_TO_SUMMARIZE')).toEqual({ nothing: true })
+    expect(parseSummary(' NOTHING_TO_SUMMARIZE.\n')).toEqual({ nothing: true })
+    expect(parseSummary('   ')).toEqual({ nothing: true })
+  })
+
+  test('the summary prompt asks for plain Markdown, not JSON', () => {
+    const { system } = buildSummaryPrompt({ title: 'S', transcript: 'we shipped', notes: '' })
+    expect(system).toContain('NOTHING_TO_SUMMARIZE')
+    expect(system).not.toMatch(/json/i)
   })
 })

@@ -75,10 +75,14 @@ function deps(): NoteDeps {
     summarize: key
       ? (m) => {
           const p = buildSummaryPrompt(m)
-          return chat(provider, key, provider === 'groq' ? groqChatModel : openrouterModel, [
-            { role: 'system', content: p.system },
-            { role: 'user', content: p.user }
-          ])
+          const model = provider === 'groq' ? groqChatModel : openrouterModel
+          const messages = [
+            { role: 'system' as const, content: p.system },
+            { role: 'user' as const, content: p.user }
+          ]
+          // Plain Markdown, not JSON mode: long notes inside a JSON string made Groq reject whole
+          // replies ("Failed to validate JSON"). Notes are worth the wait, so reasoning runs high.
+          return chat(provider, key, model, messages, { json: false, reasoningEffort: 'high' })
         }
       : null,
     noSummaryReason: `Add a ${name} API key in Settings for an AI summary.`,

@@ -63,7 +63,6 @@ export async function summarizeNote(id: string, deps: NoteDeps): Promise<NoteDoc
     const parsed = parseSummary(
       await deps.summarize({ title: doc.title, transcript: doc.transcript, notes: doc.notes })
     )
-    if ('error' in parsed) return set(deps, id, { status: 'ready', error: parsed.error })
     return set(deps, id, {
       status: 'ready',
       summary: 'nothing' in parsed ? NOTHING : parsed.summary,
