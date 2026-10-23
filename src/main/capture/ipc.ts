@@ -1,9 +1,10 @@
 import { desktopCapturer, screen, session, type DesktopCapturerSource } from 'electron'
 import { handle } from '../ipc'
+import { createCaptureChoice, primaryScreenId } from './choice'
 import { toCaptureSources } from './sources'
 
 let lastSources: DesktopCapturerSource[] = []
-let chosenId: string | null = null
+const choice = createCaptureChoice()
 
 async function fetchSources(): Promise<DesktopCapturerSource[]> {
   lastSources = await desktopCapturer.getSources({
@@ -20,16 +21,29 @@ export function registerCaptureIpc(): void {
     return toCaptureSources(sources, screen.getAllDisplays().map((d) => ({ ...d, primary: d.id === screen.getPrimaryDisplay().id })))
   })
   handle('capture:select', (_e, sourceId) => {
-    chosenId = sourceId
+    choice.selectStudio(sourceId)
+  })
+  handle('capture:meetingAudio', () => {
+    choice.armMeeting()
   })
 }
 
 /**
  * getDisplayMedia() in our renderer resolves to the source picked in our own UI (no browser
- * picker) and, when audio is requested, Windows system-audio loopback.
+ * picker) and, when audio is requested, Windows system-audio loopback. A meeting's request gets the
+ * primary screen (only its loopback audio is kept) and leaves Studio's pick as it was.
  */
 export function installDisplayMediaHandler(): void {
   session.defaultSession.setDisplayMediaRequestHandler(async (request, callback) => {
+    const pick = choice.forRequest(request.audioRequested)
+    if (pick.kind === 'meeting') {
+      const sources = await fetchSources()
+      const id = primaryScreenId(sources, screen.getPrimaryDisplay().id)
+      const source = sources.find((s) => s.id === id)
+      callback(source ? { video: source, audio: 'loopback' } : {})
+      return
+    }
+    const chosenId = pick.sourceId
     let source = lastSources.find((s) => s.id === chosenId)
     if (!source && chosenId) source = (await fetchSources()).find((s) => s.id === chosenId)
     if (!source) {

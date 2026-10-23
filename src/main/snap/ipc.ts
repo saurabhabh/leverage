@@ -5,7 +5,6 @@ import {
   ClipboardItem,
   desktopCapturer,
   dialog,
-  globalShortcut,
   nativeImage,
   Notification,
   screen,
@@ -16,6 +15,7 @@ import { join } from 'path'
 import type { SnapSelection } from '../../shared/ipc'
 import type { SnapMode } from '../../shared/snap'
 import type { Rect } from '../../shared/types'
+import { escape } from '../escape'
 import { broadcast, getSettings, handle } from '../ipc'
 import { uniqueFile } from '../media/exportIpc'
 import { helperWebPreferences, loadPage } from '../windows/load'
@@ -73,7 +73,7 @@ function finishPick(result: SnapSelection | null): void {
   if (!pick) return
   const { resolve, windows } = pick
   pick = null
-  globalShortcut.unregister('Escape')
+  escape.release('snap')
   for (const w of windows) if (!w.isDestroyed()) w.close()
   resolve(result)
 }
@@ -117,7 +117,7 @@ function pickRegion(frozen: Frozen[]): Promise<SnapSelection | null> {
       return win
     })
     pick = { frozen, windows, resolve }
-    globalShortcut.register('Escape', () => finishPick(null))
+    escape.hold('snap', () => finishPick(null))
   })
 }
 

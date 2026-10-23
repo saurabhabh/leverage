@@ -49,6 +49,8 @@ export interface InvokeApi {
 
   'capture:list': () => Promise<CaptureSource[]>
   'capture:select': (sourceId: string) => Promise<void>
+  /** The next audio getDisplayMedia() is a meeting's: primary screen + loopback; Studio's pick stays. */
+  'capture:meetingAudio': () => Promise<void>
 
   'window:minimize': () => Promise<void>
   'window:restore': () => Promise<void>
@@ -176,6 +178,7 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'rec:list',
   'capture:list',
   'capture:select',
+  'capture:meetingAudio',
   'window:minimize',
   'window:restore',
   'region:pick',

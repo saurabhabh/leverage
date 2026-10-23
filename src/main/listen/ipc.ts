@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, ClipboardItem, globalShortcut, screen } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, screen } from 'electron'
 import { copyFile, mkdir, rm, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { cpus, tmpdir } from 'os'
@@ -12,6 +12,7 @@ import { pasteText, sendCtrlV, type PasteDeps } from './paste'
 import { dictionaryPrompt, transcribeGroqText, transcribeLocalText } from './transcribeText'
 import { broadcast, getSettings, handle } from '../ipc'
 import { chat } from '../ai/chat'
+import { escape } from '../escape'
 import { keyStore } from '../ai/keys'
 import { execFfmpeg } from '../media/ffmpeg'
 import { cliPath, modelPath, whisperStatus } from '../whisper/install'
@@ -25,7 +26,6 @@ let pillReady: Promise<void> = Promise.resolve()
 let markPillReady: () => void = () => {}
 let status: DictationStatus = { phase: 'idle' }
 let hideTimer: NodeJS.Timeout | undefined
-let escapeHeld = false
 let history: HistoryStore | null = null
 
 const listenDir = (): string => join(app.getPath('userData'), 'listen')
@@ -87,12 +87,8 @@ async function command(c: DictateCommand): Promise<void> {
 
 /** Esc cancels while recording (as in Wispr Flow); held only for that time. */
 function holdEscape(on: boolean): void {
-  if (on && !escapeHeld)
-    escapeHeld = globalShortcut.register('Escape', () => void command({ action: 'cancel' }))
-  else if (!on && escapeHeld) {
-    globalShortcut.unregister('Escape')
-    escapeHeld = false
-  }
+  if (on) escape.hold('dictation', () => void command({ action: 'cancel' }))
+  else escape.release('dictation')
 }
 
 function setStatus(next: DictationStatus): void {

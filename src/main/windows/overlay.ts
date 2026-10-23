@@ -1,4 +1,5 @@
-import { BrowserWindow, globalShortcut, screen } from 'electron'
+import { BrowserWindow, screen } from 'electron'
+import { escape } from '../escape'
 import type { RegionPick } from '../../shared/ipc'
 import { handle } from '../ipc'
 import { helperWebPreferences, loadPage } from './load'
@@ -9,7 +10,7 @@ function finish(result: RegionPick | null): void {
   if (!pending) return
   const { resolve, windows } = pending
   pending = null
-  globalShortcut.unregister('Escape')
+  escape.release('region')
   for (const w of windows) if (!w.isDestroyed()) w.close()
   resolve(result)
 }
@@ -54,7 +55,7 @@ function pickRegion(): Promise<RegionPick | null> {
     })
     pending = { resolve, windows }
     // Esc cancels even if an overlay has not taken keyboard focus yet.
-    globalShortcut.register('Escape', () => finish(null))
+    escape.hold('region', () => finish(null))
   })
 }
 

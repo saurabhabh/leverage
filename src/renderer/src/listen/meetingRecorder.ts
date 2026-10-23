@@ -35,9 +35,8 @@ export class MeetingRecorder {
       )
     }
     try {
-      const screen = (await api['capture:list']()).find((s) => s.kind === 'screen')
-      if (!screen) throw new Error('no screen source')
-      await api['capture:select'](screen.id)
+      // Its own claim, so a Studio recording being set up keeps the screen or window it picked.
+      await api['capture:meetingAudio']()
       const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
       display.getVideoTracks().forEach((t) => t.stop())
       if (!display.getAudioTracks().length) throw new Error('no audio')
