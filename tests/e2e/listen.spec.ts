@@ -2,14 +2,24 @@ import { test, expect, type ElectronApplication, type Page } from '@playwright/t
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { launchIsolated } from './launch'
+import { haveEngine, preinstallWhisper, SPEECH_MIC } from './whisperLab'
 
 /** Chromium's fake microphone (a steady beep) so dictation has real audio to record. */
 const FAKE_MIC = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
 
 async function openListen(
-  opts: { env?: Record<string, string>; settings?: Record<string, unknown> } = {}
+  opts: {
+    env?: Record<string, string>
+    settings?: Record<string, unknown>
+    args?: string[]
+    prepare?: (userData: string) => void
+  } = {}
 ): Promise<{ app: ElectronApplication; page: Page; userData: string }> {
-  const { app, userData } = await launchIsolated(opts.settings, { args: FAKE_MIC, env: opts.env })
+  const { app, userData } = await launchIsolated(opts.settings, {
+    args: opts.args ?? FAKE_MIC,
+    env: opts.env,
+    prepare: opts.prepare
+  })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
   await page.getByRole('button', { name: 'Listen', exact: true }).click()
@@ -137,4 +147,21 @@ test('Groq transcription + cleanup (mock server) → text on the clipboard and i
   expect(chatCall.body).toContain('um send it by friday')
   await app.close()
   server.close()
+})
+
+test('local Whisper: real speech dictated through the pill lands in history and on the clipboard', async () => {
+  test.skip(!haveEngine, 'whisper.cpp not present in _lab')
+  test.setTimeout(180_000)
+  const { app, page } = await openListen({ args: SPEECH_MIC, prepare: preinstallWhisper })
+  // Copy only: on Windows a real Ctrl+V would go into whatever has focus.
+  await page.evaluate(async () => {
+    const s = await window.leverage['settings:get']()
+    await window.leverage['settings:set']({ ...s, listen: { ...s.listen, paste: false } })
+  })
+  await dictate(app, page, 6000)
+  const item = page.getByTestId('dictation').first()
+  await expect(item).toContainText(/welcome/i, { timeout: 150_000 })
+  await expect(item.getByText('Copied')).toBeVisible()
+  expect(await app.evaluate(({ clipboard }) => clipboard.readText())).toMatch(/welcome/i)
+  await app.close()
 })

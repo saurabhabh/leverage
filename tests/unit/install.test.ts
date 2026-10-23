@@ -17,7 +17,27 @@ let model: Buffer
 let requests: string[]
 let slow = false
 
+/**
+ * Off Windows there is no System32\\tar.exe (bsdtar, which reads zips). Stand in for it with a tiny
+ * script over zip/unzip that handles the two calls made here, so the rest of the installer runs for real.
+ */
+function shimWindowsTar(): void {
+  if (process.platform === 'win32') return
+  const root = mkdtempSync(join(tmpdir(), 'lev-sysroot-'))
+  mkdirSync(join(root, 'System32'))
+  const script = [
+    '#!/bin/sh',
+    '# -a -cf <zip> -C <dir> <name>   |   -xf <zip> -C <dir>',
+    'if [ "$1" = "-a" ]; then cd "$5" && exec zip -qr "$3" "$6"; fi',
+    'if [ "$1" = "-xf" ]; then exec unzip -qo "$2" -d "$4"; fi',
+    'exit 2'
+  ]
+  writeFileSync(join(root, 'System32', 'tar.exe'), script.join('\n'), { mode: 0o755 })
+  process.env['SystemRoot'] = root
+}
+
 beforeAll(async () => {
+  shimWindowsTar()
   // A zip shaped like the real release: Release/whisper-cli.exe + a DLL.
   const work = mkdtempSync(join(tmpdir(), 'lev-zip-'))
   mkdirSync(join(work, 'Release'))

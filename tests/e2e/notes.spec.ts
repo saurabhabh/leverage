@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { launchIsolated } from './launch'
 import { seedCrashedRecording } from './fixtures'
+import { haveEngine, preinstallWhisper, SPEECH_MIC } from './whisperLab'
 
 const FAKE_MIC = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
 const WORDS = 'We agreed to ship on Friday. Asha will send the deck.'
@@ -11,7 +12,7 @@ const WORDS = 'We agreed to ship on Friday. Asha will send the deck.'
   .map((text, i) => ({ text, startMs: i * 300, endMs: i * 300 + 250 }))
 
 async function launch(
-  opts: { env?: Record<string, string> } = {}
+  opts: { env?: Record<string, string>; args?: string[]; prepare?: (userData: string) => void } = {}
 ): Promise<{ app: ElectronApplication; page: Page; notesDir: string }> {
   const base = mkdtempSync(join(tmpdir(), 'lev-notes-e2e-'))
   const library = join(base, 'Library')
@@ -28,7 +29,7 @@ async function launch(
         notesDir
       }
     },
-    { args: FAKE_MIC, env: opts.env }
+    { args: opts.args ?? FAKE_MIC, env: opts.env, prepare: opts.prepare }
   )
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
@@ -131,4 +132,24 @@ test('AI summary from a mock Groq: sections render, Regenerate works, only text 
   expect(bodies[0]).toContain('We agreed to ship on Friday.')
   await app.close()
   server.close()
+})
+
+test('local Whisper: a recorded meeting is transcribed into its note', async () => {
+  test.skip(!haveEngine, 'whisper.cpp not present in _lab')
+  test.setTimeout(180_000)
+  const { app, page } = await launch({ args: SPEECH_MIC, prepare: preinstallWhisper })
+  await page.getByRole('button', { name: 'Listen', exact: true }).click()
+  await page.getByRole('tab', { name: 'Notes' }).click()
+  await page.getByRole('button', { name: 'Start recording' }).click()
+  const note = page.getByTestId('note')
+  await expect(note.getByRole('button', { name: 'Stop and make notes' })).toBeVisible()
+  await page.waitForTimeout(6000)
+  await note.getByRole('button', { name: 'Stop and make notes' }).click()
+  // No AI key: the transcript arrives and the note explains the missing summary.
+  await expect(note.getByText(/Add a Groq API key in Settings for an AI summary/)).toBeVisible({
+    timeout: 150_000
+  })
+  await note.getByText('Transcript').click()
+  await expect(note.locator('.note-transcript')).toContainText(/welcome/i)
+  await app.close()
 })
