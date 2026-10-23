@@ -9,9 +9,14 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{_lab,tests,docs,test-results,.superpowers,.claude}/**'
+  - '!{playwright.config.ts,vitest.config.ts}'
+  # ffprobe-static ships every platform's binary; the Windows build needs only win32/x64.
+  - '!node_modules/ffprobe-static/bin/{darwin,linux,win32/ia32}/**'
 asarUnpack:
   - resources/**
   - node_modules/ffmpeg-static/**
+  - node_modules/ffprobe-static/**
 win:
   executableName: Leverage
 nsis:

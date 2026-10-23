@@ -16,8 +16,11 @@ export async function launchIsolated(
   opts.prepare?.(userData)
   // Linux runners have no keyring: a basic store with plain-text "encryption", test-only (see keys.ts).
   const linux = process.platform === 'linux'
+  // LEVERAGE_E2E_EXE runs the suite against a packaged build (e.g. dist/win-unpacked/Leverage.exe).
+  const exe = process.env['LEVERAGE_E2E_EXE']
   const app = await electron.launch({
-    args: ['.', ...(linux ? ['--password-store=basic'] : []), ...(opts.args ?? [])],
+    ...(exe ? { executablePath: exe } : {}),
+    args: [...(exe ? [] : ['.']), ...(linux ? ['--password-store=basic'] : []), ...(opts.args ?? [])],
     env: {
       ...process.env,
       ...opts.env,
