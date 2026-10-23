@@ -14,9 +14,16 @@ export async function launchIsolated(
   const userData = mkdtempSync(join(tmpdir(), 'lev-e2e-'))
   if (settings) writeFileSync(join(userData, 'settings.json'), JSON.stringify(settings))
   opts.prepare?.(userData)
+  // Linux runners have no keyring: a basic store with plain-text "encryption", test-only (see keys.ts).
+  const linux = process.platform === 'linux'
   const app = await electron.launch({
-    args: ['.', ...(opts.args ?? [])],
-    env: { ...process.env, ...opts.env, LEVERAGE_USER_DATA: userData }
+    args: ['.', ...(linux ? ['--password-store=basic'] : []), ...(opts.args ?? [])],
+    env: {
+      ...process.env,
+      ...opts.env,
+      ...(linux ? { LEVERAGE_TEST_PLAINTEXT_KEYS: '1' } : {}),
+      LEVERAGE_USER_DATA: userData
+    }
   })
   return { app, userData }
 }

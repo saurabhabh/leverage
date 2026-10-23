@@ -101,10 +101,6 @@ test('a meeting records the mic into the note folder; system audio missing is ex
 })
 
 test('AI summary from a mock Groq: sections render, Regenerate works, only text is sent', async () => {
-  test.skip(
-    process.platform === 'linux',
-    'API keys need OS secure storage, which this Linux runner lacks'
-  )
   const { createServer } = await import('http')
   const bodies: string[] = []
   const server = createServer((req, res) => {

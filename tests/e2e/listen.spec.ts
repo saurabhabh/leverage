@@ -98,10 +98,6 @@ test('dictionary words and options are saved to settings', async () => {
 })
 
 test('Groq transcription + cleanup (mock server) → text on the clipboard and in history', async () => {
-  test.skip(
-    process.platform === 'linux',
-    'API keys need OS secure storage, which this Linux runner lacks'
-  )
   const { createServer } = await import('http')
   const seen: { path: string; body: string }[] = []
   const server = createServer((req, res) => {

@@ -57,7 +57,10 @@ test('toolbar appears while recording and its Pause and Stop control the recorde
 })
 
 test('camera bubble shows during recording and its position is saved', async () => {
-  const { app } = await launchIsolated()
+  // Chromium's fake camera, so this runs on machines without one.
+  const { app } = await launchIsolated(undefined, {
+    args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
+  })
   const page = await app.firstWindow()
   const library = await useTempLibrary(page)
   await page.getByRole('button', { name: 'Studio' }).click()
