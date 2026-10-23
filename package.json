@@ -1,6 +1,6 @@
 {
   "name": "leverage",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Leverage — Studio, Snap, Listen",
   "main": "./out/main/index.js",
   "author": "Saurabh",

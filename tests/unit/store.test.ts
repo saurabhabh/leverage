@@ -156,4 +156,32 @@ describe('RecordingStore', () => {
       /Unknown recording/
     )
   })
+
+  test('rename changes a finished recording’s title, trimmed; the folder keeps its name', async () => {
+    const store = new RecordingStore(root, remux)
+    const { id, dir } = await store.create(init)
+    await store.finalize(id, 1000)
+    const renamed = await store.rename(id, '  Client demo — v2  ')
+    expect(renamed.title).toBe('Client demo — v2')
+    expect(JSON.parse(readFileSync(join(dir, 'recording.json'), 'utf8')).title).toBe('Client demo — v2')
+    expect((await store.list())[0].title).toBe('Client demo — v2')
+    expect(existsSync(dir)).toBe(true)
+  })
+
+  test('a recording renamed while it is still recording keeps the name when finished', async () => {
+    const store = new RecordingStore(root, remux)
+    const { id, dir } = await store.create(init)
+    await store.rename(id, 'Standup')
+    await store.finalize(id, 1000)
+    expect(JSON.parse(readFileSync(join(dir, 'recording.json'), 'utf8')).title).toBe('Standup')
+  })
+
+  test('rename refuses an empty title and an unknown recording; long titles are cut to 200 characters', async () => {
+    const store = new RecordingStore(root, remux)
+    const { id } = await store.create(init)
+    await store.finalize(id, 1000)
+    await expect(store.rename(id, '   ')).rejects.toThrow(/empty/i)
+    await expect(store.rename('missing', 'X')).rejects.toThrow(/Unknown recording/)
+    expect((await store.rename(id, 'a'.repeat(300))).title).toHaveLength(200)
+  })
 })

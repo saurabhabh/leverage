@@ -98,7 +98,10 @@ function Recordings({ onEdit, onNotes }: Pick<Props, 'onEdit' | 'onNotes'>): Rea
             <div className="library-head">
               <div>
                 <div className="library-title">
-                  {m.title}
+                  <RecordingName
+                    m={m}
+                    onError={(message) => setJobs((j) => ({ ...j, [m.id]: { error: `Could not rename: ${message}` } }))}
+                  />
                   {m.status === 'incomplete' && (
                     <span className="badge" title="Leverage closed before this recording was stopped. What was captured is kept.">
                       Incomplete
@@ -152,5 +155,41 @@ function Recordings({ onEdit, onNotes }: Pick<Props, 'onEdit' | 'onNotes'>): Rea
         )
       })}
     </>
+  )
+}
+
+/** The recording's title; click it to rename in place. Enter or leaving the box saves, Esc cancels. */
+function RecordingName({ m, onError }: { m: RecordingManifest; onError: (message: string) => void }): React.JSX.Element {
+  const [draft, setDraft] = useState<string | null>(null)
+
+  if (draft === null)
+    return (
+      <button className="library-name" title="Click to rename" aria-label={`Rename ${m.title}`} onClick={() => setDraft(m.title)}>
+        {m.title}
+      </button>
+    )
+
+  const save = (): void => {
+    const title = draft.trim()
+    setDraft(null)
+    if (!title || title === m.title) return
+    window.leverage['rec:rename'](m.id, title).catch((err) => onError(err instanceof Error ? err.message.split('\n')[0] : String(err)))
+  }
+
+  return (
+    <input
+      className="text-input library-name-input"
+      aria-label="Recording name"
+      autoFocus
+      maxLength={200}
+      value={draft}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') setDraft(null)
+      }}
+    />
   )
 }

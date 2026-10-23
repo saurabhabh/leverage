@@ -46,6 +46,7 @@ export interface InvokeApi {
   'rec:finalize': (id: string, durationMs: number) => Promise<RecordingManifest>
   'rec:abort': (id: string) => Promise<void>
   'rec:list': () => Promise<RecordingManifest[]>
+  'rec:rename': (id: string, title: string) => Promise<RecordingManifest>
 
   'capture:list': () => Promise<CaptureSource[]>
   'capture:select': (sourceId: string) => Promise<void>
@@ -176,6 +177,7 @@ export const INVOKE_CHANNELS: readonly InvokeChannel[] = [
   'rec:finalize',
   'rec:abort',
   'rec:list',
+  'rec:rename',
   'capture:list',
   'capture:select',
   'capture:meetingAudio',

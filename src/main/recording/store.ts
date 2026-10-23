@@ -13,6 +13,7 @@ export type CreateInit = CreateInitPayload
 type Open = { dir: string; manifest: RecordingManifest; queues: Map<string, Promise<void>> }
 
 const MANIFEST = 'recording.json'
+const MAX_TITLE = 200
 
 /**
  * Owns the on-disk library. Every recording is a new folder holding one file per track plus a
@@ -77,6 +78,25 @@ export class RecordingStore {
   async update(id: string, patch: Pick<Partial<RecordingManifest>, 'bubble' | 'crop'>): Promise<void> {
     Object.assign(this.get(id).manifest, patch)
     await this.writeManifest(id)
+  }
+
+  /**
+   * A new title for a recording, finished or still in progress. Only the manifest changes: the folder
+   * keeps its date name, so the editor, notes and an open Explorer window are unaffected.
+   */
+  async rename(id: string, title: string): Promise<RecordingManifest> {
+    const clean = title.trim().slice(0, MAX_TITLE)
+    if (!clean) throw new Error('A recording name cannot be empty.')
+    if (this.open.has(id)) {
+      this.get(id).manifest.title = clean
+      await this.writeManifest(id)
+      return this.get(id).manifest
+    }
+    const found = await this.find(id)
+    if (!found) throw new Error(`Unknown recording ${id}`)
+    const manifest = { ...found.manifest, title: clean }
+    await writeManifestFile(found.dir, manifest)
+    return manifest
   }
 
   async disableTrack(id: string, track: TrackKind, reason: string): Promise<void> {

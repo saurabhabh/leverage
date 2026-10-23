@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { existsSync, mkdtempSync } from 'fs'
+import { existsSync, mkdtempSync, readFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { launchIsolated } from './launch'
@@ -48,5 +48,34 @@ test('Library lists recordings with status, tracks and actions', async () => {
   for (const name of ['Export MP4', 'Export GIF', 'Show in Explorer', 'Delete']) {
     await expect(item.getByRole('button', { name })).toBeEnabled()
   }
+  await app.close()
+})
+
+test('a recording is renamed in place from the Library; Esc cancels and an empty name is ignored', async () => {
+  const library = join(mkdtempSync(join(tmpdir(), 'lev-rename-')), 'Library')
+  const dir = seedCrashedRecording(library)
+  const { app } = await launchIsolated({ libraryDir: library })
+  const page = await app.firstWindow()
+  await page.getByRole('button', { name: 'Library' }).click()
+  const item = page.getByTestId('library-item')
+  const name = item.getByRole('textbox', { name: 'Recording name' })
+
+  await item.getByRole('button', { name: 'Rename Crashed demo' }).click()
+  await expect(name).toBeFocused()
+  await name.fill('Client demo v2')
+  await name.press('Enter')
+  await expect(item.getByRole('button', { name: 'Rename Client demo v2' })).toBeVisible()
+  expect(JSON.parse(readFileSync(join(dir, 'recording.json'), 'utf8')).title).toBe('Client demo v2')
+
+  await item.getByRole('button', { name: 'Rename Client demo v2' }).click()
+  await name.fill('Not kept')
+  await name.press('Escape')
+  await expect(item.getByRole('button', { name: 'Rename Client demo v2' })).toBeVisible()
+
+  await item.getByRole('button', { name: 'Rename Client demo v2' }).click()
+  await name.fill('   ')
+  await name.press('Enter')
+  await expect(item.getByRole('button', { name: 'Rename Client demo v2' })).toBeVisible()
+  expect(JSON.parse(readFileSync(join(dir, 'recording.json'), 'utf8')).title).toBe('Client demo v2')
   await app.close()
 })

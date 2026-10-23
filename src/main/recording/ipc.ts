@@ -41,6 +41,11 @@ export function registerRecordingIpc(): void {
     broadcast('library:changed', null)
   })
   handle('rec:list', () => libraryStore().list())
+  handle('rec:rename', async (_e, id, title) => {
+    const manifest = await ownerOf(id).rename(id, title)
+    broadcast('library:changed', null)
+    return manifest
+  })
 }
 
 /** Mark recordings interrupted by a crash as incomplete (their files are kept and still export). */
